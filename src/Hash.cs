@@ -40,7 +40,7 @@ namespace Lokad.ContentAddr
         }
 
         /// <summary> Private constructor. </summary>
-        internal Hash(ulong left, ulong right)
+        public Hash(ulong left, ulong right)
         {
             HashLeft = left;
             HashRight = right;
