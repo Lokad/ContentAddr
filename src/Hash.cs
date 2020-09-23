@@ -1,4 +1,5 @@
 ﻿using System;
+using System.ComponentModel;
 using System.Diagnostics.Contracts;
 using System.IO;
 
@@ -6,6 +7,7 @@ namespace Lokad.ContentAddr
 {
     /// <summary> A memory-tight representation of a 128-bit hash. </summary>
     /// <remarks> Value type, uses exactly 16 bytes. </remarks>
+    [TypeConverter(typeof(HashTypeConverter))]
     public struct Hash : IEquatable<Hash>
     {
         /// <summary> The first 64 bits of the 128-bit hash. </summary>
