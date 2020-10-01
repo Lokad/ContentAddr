@@ -38,7 +38,7 @@ namespace Lokad.ContentAddr
             while (increment != 0 && count != 0)
             {
                 count = s.Read(buffer, 0, increment);
-                checksum = UpdateCRC32(buffer.AsSpan(0, increment), checksum);
+                checksum = UpdateCRC32(buffer.AsSpan(0, count), checksum);
                 remainder -= count;
                 increment = Math.Min(remainder, MaxReadBufferSize);
             }
