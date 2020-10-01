@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 
 namespace Lokad.ContentAddr
 {
@@ -15,6 +16,38 @@ namespace Lokad.ContentAddr
     public static class Checksum
     {
         public const uint Seed = 0xFFFFFFFF;
+
+        /// <summary>
+        /// Compute a CRC32 checksum of data read from a given stream.
+        /// </summary>
+        /// <remarks>the given <see cref="Stream"/>'s position will be set to the given offset.</remarks>
+        /// <param name="s"><see cref="Stream"/> that should be read.</param>
+        /// <param name="offset"> position of the <see cref="Stream"/> in order to read</param>
+        /// <param name="length"> byte length of data that should be read from the stream.
+        /// </param>
+        /// <returns>the CRC32 checksum of the </returns>
+        public static uint CRC32(Stream s, int offset, int length)
+        {
+            var increment = Math.Min(length, MaxReadBufferSize);
+            var buffer = new byte[increment];
+            var remainder = length;
+            s.Position = offset;
+
+            var count = -1;
+            var checksum = Seed;
+            while (increment != 0 && count != 0)
+            {
+                count = s.Read(buffer, 0, increment);
+                checksum = UpdateCRC32(buffer.AsSpan(0, increment), checksum);
+                remainder -= count;
+                increment = Math.Min(remainder, MaxReadBufferSize);
+            }
+
+            if (count == 0)
+                throw new ArgumentException($"Missing {remainder} bytes from stream to reach the {length} requested length.", nameof(length));
+
+            return FinalizeCRC32(checksum);
+        }
 
         /// <summary> Computes a CRC32 checksum of a buffer. </summary>
         public static uint CRC32(byte[] b, int offset, int length) =>
@@ -36,6 +69,8 @@ namespace Lokad.ContentAddr
 
             return crc32;
         }
+
+        internal static readonly int MaxReadBufferSize = 84000;
 
         /// <summary> Used to compute the checksum. </summary>
         private static readonly uint[] Table = {
