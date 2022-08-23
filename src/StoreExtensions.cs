@@ -15,18 +15,26 @@ namespace Lokad.ContentAddr
             byte[] buffer,
             CancellationToken cancel)
         =>
-            store.WriteAsync(buffer, 0, buffer.Length, cancel);
+            store.WriteAsync(buffer.AsMemory(), cancel);
 
         /// <summary> Write a buffer of bytes to the store. </summary>
-        public static async Task<WrittenBlob> WriteAsync(
+        public static Task<WrittenBlob> WriteAsync(
             this IWriteOnlyStore store,
             byte[] buffer,
             int offset,
             int count,
             CancellationToken cancel)
+        =>
+            store.WriteAsync(buffer.AsMemory(offset, count), cancel);
+
+        /// <summary> Write a buffer of bytes to the store. </summary>
+        public static async Task<WrittenBlob> WriteAsync(
+            this IWriteOnlyStore store,
+            ReadOnlyMemory<byte> buffer,
+            CancellationToken cancel)
         {
             using (var writer = store.StartWriting())
-                return await writer.WriteAndCommitAsync(buffer, offset, count, cancel).ConfigureAwait(false);
+                return await writer.WriteAndCommitAsync(buffer, cancel).ConfigureAwait(false);
         }
 
         /// <summary> Write a stream to a store. </summary>
