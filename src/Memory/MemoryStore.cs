@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -52,11 +53,11 @@ namespace Lokad.ContentAddr.Memory
                 _files = files;
             }
 
-            /// <see cref="StoreWriter.DoWriteAsync"/>
-            protected override Task DoWriteAsync(byte[] buffer, int offset, int count, CancellationToken cancel) =>
-                _stream.WriteAsync(buffer, offset, count, cancel);
+            /// <inheritdoc cref="StoreWriter.DoWriteAsync"/>
+            protected override Task DoWriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancel) =>
+                _stream.WriteAsync(buffer, cancel).AsTask();
 
-            /// <see cref="StoreWriter.DoCommitAsync"/>
+            /// <inheritdoc cref="StoreWriter.DoCommitAsync"/>
             protected override Task DoCommitAsync(Hash hash, CancellationToken cancel)
             {
                 lock (_files)

@@ -1,4 +1,5 @@
-﻿using System.Threading;
+﻿using System;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Lokad.ContentAddr
@@ -10,11 +11,11 @@ namespace Lokad.ContentAddr
 
         private sealed class NullWriter : StoreWriter
         {
-            /// <see cref="StoreWriter.DoWriteAsync"/>
-            protected override Task DoWriteAsync(byte[] buffer, int offset, int count, CancellationToken cancel) =>
+            /// <inheritdoc cref="StoreWriter.DoWriteAsync"/>
+            protected override Task DoWriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancel) =>
                 Task.FromResult(0);
 
-            /// <see cref="StoreWriter.DoCommitAsync"/>
+            /// <inheritdoc cref="StoreWriter.DoCommitAsync"/>
             protected override Task DoCommitAsync(Hash hash, CancellationToken cancel) =>
                 Task.FromResult(0);
         }

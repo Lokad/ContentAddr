@@ -32,15 +32,15 @@ namespace Lokad.ContentAddr.Disk
             _temp = File.Open(_tempPath, FileMode.CreateNew);
         }
 
-        /// <see cref="StoreWriter.DoWriteAsync"/>
-        protected override Task DoWriteAsync(byte[] buffer, int offset, int count, CancellationToken cancel) =>
-            _temp.WriteAsync(buffer, offset, count, cancel);
+        /// <inheritdoc cref="StoreWriter.DoWriteAsync"/>
+        protected override Task DoWriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancel) =>
+            _temp.WriteAsync(buffer, cancel).AsTask();
 
-        /// <see cref="StoreWriter.DoCommitAsync"/>
+        /// <inheritdoc cref="StoreWriter.DoCommitAsync"/>
         protected override Task DoCommitAsync(Hash hash, CancellationToken cancel) =>
             DoOptCommitAsync(hash, null, cancel);
 
-        /// <see cref="StoreWriter.DoOptCommitAsync"/>
+        /// <inheritdoc cref="StoreWriter.DoOptCommitAsync"/>
         protected override async Task DoOptCommitAsync(Hash hash, Func<Task> optionalWrite, CancellationToken cancel)
         {
             var path = DiskStorePaths.PathOfHash(_path, hash);

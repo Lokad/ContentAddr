@@ -75,7 +75,15 @@ namespace Lokad.ContentAddr
         private Hash _hash;
 
         /// <summary> Used to hash incoming bytes. </summary>
-        private readonly MD5 _hasher = MD5.Create();
+        private readonly IncrementalHash _hasher = IncrementalHash.CreateHash(HashAlgorithmName.MD5);
+
+        /// <summary> Clears the hasher contents and returns the computed hash. </summary>
+        private Hash GetHashFromHasher()
+        {
+            Span<byte> destination = stackalloc byte[Hash.Size];
+            _hasher.TryGetHashAndReset(destination, out _);
+            return Hash.FromBytes(destination);
+        }
 
         /// <summary> The task returned by the first call to a commit function. </summary>
         private Task<WrittenBlob> _theCommit;
@@ -111,13 +119,12 @@ namespace Lokad.ContentAddr
                 _syncBuffer = null;
                 _syncOffset = 0;
                 
-                return await RealWriteAndCommitAsync(buffer, 0, count, cancel).ConfigureAwait(false);
+                return await RealWriteAndCommitAsync(buffer.AsMemory(0, count), cancel).ConfigureAwait(false);
             }
             
             try
             {
-                _hasher.TransformFinalBlock(new byte[0], 0, 0);
-                _hash = new Hash(_hasher.Hash);
+                _hash = GetHashFromHasher();
 
                 await DoOptCommitAsync(_hash, null, cancel).ConfigureAwait(false);
             }
@@ -157,7 +164,27 @@ namespace Lokad.ContentAddr
         ///         <see cref="WriteAsync(byte[],int,int,CancellationToken)"/> with the buffer
         ///         beforehand. This call is not awaited.
         /// </remarks>
-        public void Write(byte[] buffer, int offset, int count)
+        public void Write(byte[] buffer, int offset, int count) =>
+            Write(buffer.AsSpan(offset, count));
+
+        /// <summary> Synchronous write. </summary>
+        /// <remarks>
+        ///     Some outer interfaces (such as <see cref="System.IO.Stream"/>) require us to support 
+        ///     synchronous writes. We cannot just wrap the async write function with a <c>Wait()</c>
+        ///     due to deadlock risks, so we provide this method instead. What it does is: 
+        /// 
+        ///       - every time data is received, it is appended to the <see cref="_syncBuffer"/>
+        ///         (allocated on first use) at position <see cref="_syncOffset"/>. This is because
+        ///         we are not allowed to keep around the buffer received as argument, so we need 
+        ///         to perform a copy. The good news is, this is actually more efficient when dealing
+        ///         with a lot of very small writes.
+        /// 
+        ///       - when the buffer is full, or when an async operation is performed through 
+        ///         another method, <see cref="WriteSyncBuffer"/> is called to perform a 
+        ///         <see cref="WriteAsync(byte[],int,int,CancellationToken)"/> with the buffer
+        ///         beforehand. This call is not awaited.
+        /// </remarks>
+        public void Write(ReadOnlySpan<byte> span)
         {
             if (Failure != null)
                 throw new InvalidOperationException(
@@ -167,16 +194,15 @@ namespace Lokad.ContentAddr
             if (CommitWasRequested)
                 throw new InvalidOperationException("Cannot write to a committed StoreWriter.");
 
-            while (count > 0)
+            while (span.Length > 0)
             {
                 if (_syncBuffer == null) _syncBuffer = new byte[4 * 1024 * 1024];
 
-                var length = Math.Min(count, _syncBuffer.Length - _syncOffset);
-                Array.Copy(buffer, offset, _syncBuffer, _syncOffset, length);
-
+                var length = Math.Min(span.Length, _syncBuffer.Length - _syncOffset);
+                span.Slice(0, length).CopyTo(_syncBuffer.AsSpan(_syncOffset));
+                    
                 _syncOffset += length;
-                offset += length;
-                count -= length;
+                span = span.Slice(length);
 
                 if (_syncOffset == _syncBuffer.Length) WriteSyncBuffer(CancellationToken.None);
             }
@@ -210,8 +236,6 @@ namespace Lokad.ContentAddr
             _syncOffset = 0;
             _syncBuffer = null;
             
-#pragma warning disable CS4014
-
             // The thread-unsafe parts of this call are done by the time it returns. The
             // task itself only needs to be awaited in order to know when the buffer is 
             // no longer in use ; but since we discard the buffer, we don't care, so there
@@ -221,15 +245,17 @@ namespace Lokad.ContentAddr
             // ongoing writes, so that they are all completed by the time the final commit
             // is performed.
 
-            WriteAsync(buffer, 0, count, cancel);
-            
-#pragma warning restore CS4014
+            _ = WriteAsync(buffer, 0, count, cancel);
         }
 
         #endregion
 
         /// <summary> Write to the background task. </summary>
-        public async Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancel)
+        public Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancel) =>
+            WriteAsync(buffer.AsMemory(offset, count), cancel);
+
+        /// <summary> Write to the background task. </summary>
+        public async Task WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancel)
         {
             if (Failure != null)
                 throw new InvalidOperationException(
@@ -242,12 +268,12 @@ namespace Lokad.ContentAddr
             if (_syncBuffer != null)
                 WriteSyncBuffer(cancel);
 
-            _hasher.TransformBlock(buffer, offset, count, buffer, offset);
-            _hashedBytes += count;
+            _hasher.AppendData(buffer.Span);
+            _hashedBytes += buffer.Length;
 
             try
             {
-                await DoWriteAsync(buffer, offset, count, cancel).ConfigureAwait(false);
+                await DoWriteAsync(buffer, cancel).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -261,7 +287,10 @@ namespace Lokad.ContentAddr
         ///     by <see cref="CommitAsync"/>, but allows the <see cref="StoreWriter"/> to perform 
         ///     optimizations during the write because it knows it will be the last.
         /// </summary>
-        public Task<WrittenBlob> WriteAndCommitAsync(byte[] buffer, int offset, int count, CancellationToken cancel)
+        public Task<WrittenBlob> WriteAndCommitAsync(byte[] buffer, int offset, int count, CancellationToken cancel) =>
+            WriteAndCommitAsync(buffer.AsMemory(offset, count), cancel);
+
+        public Task<WrittenBlob> WriteAndCommitAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancel)
         {
             if (_theCommit != null)
                 throw new InvalidOperationException("Cannot write to a committed StoreWriter.");
@@ -271,12 +300,12 @@ namespace Lokad.ContentAddr
                     "StoreWriter is in a failed state due to an earlier exception.",
                     Failure);
 
-            return _theCommit = RealWriteAndCommitAsync(buffer, offset, count, cancel);
+            return _theCommit = RealWriteAndCommitAsync(buffer, cancel);
         }
 
         /// <summary> Async implementation of <see cref="WriteAndCommitAsync"/>. </summary>
         /// <remarks> Will only be called if <see cref="_theCommit"/> is null. </remarks>
-        private async Task<WrittenBlob> RealWriteAndCommitAsync(byte[] buffer, int offset, int count, CancellationToken cancel)
+        private async Task<WrittenBlob> RealWriteAndCommitAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancel)
         {
             // We let the protected async function decide whether the final writes need 
             // to be performed (if the blob does not exist yet), by providing a closure 
@@ -285,7 +314,7 @@ namespace Lokad.ContentAddr
 
             if (_syncBuffer == null)
             {
-                writeIfNecessary = () => DoWriteAsync(buffer, offset, count, cancel);
+                writeIfNecessary = () => DoWriteAsync(buffer, cancel);
             }
             else
             {
@@ -296,25 +325,25 @@ namespace Lokad.ContentAddr
                 var preCount = _syncOffset;
 
                 _syncBuffer = null;
-                _syncOffset = 0;                    
+                _syncOffset = 0;
 
-                _hasher.TransformBlock(preBuffer, 0, preCount, preBuffer, 0);
+                _hasher.AppendData(preBuffer.AsSpan(0, preCount));
                 _hashedBytes += preCount;
 
                 writeIfNecessary = () =>
                 {
                     // As long as the calls are done in sequence, the returned tasks
                     // themselves can be awaited in parallel.
-                    var pre = DoWriteAsync(preBuffer, 0, preCount, cancel);
-                    var post = DoWriteAsync(buffer, offset, count, cancel);
+                    var pre = DoWriteAsync(preBuffer.AsMemory(0, preCount), cancel);
+                    var post = DoWriteAsync(buffer, cancel);
                     return Task.WhenAll(pre, post);
                 };
             }
 
-            _hasher.TransformFinalBlock(buffer, offset, count);
-            _hashedBytes += count;
+            _hasher.AppendData(buffer.Span);
+            _hashedBytes += buffer.Length;
 
-            _hash = new Hash(_hasher.Hash);
+            _hash = GetHashFromHasher();
 
             try
             {
@@ -409,7 +438,7 @@ namespace Lokad.ContentAddr
         ///     The returned task should complete as soon as another call to <see cref="DoWriteAsync"/>
         ///     or <see cref="DoCommitAsync"/> can be performed, even if the data is not yet fully persisted.
         /// </remarks>
-        protected abstract Task DoWriteAsync(byte[] buffer, int offset, int count, CancellationToken cancel);
+        protected abstract Task DoWriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancel);
 
         /// <summary> Commit all data written so far, with the provided hash. </summary>
         /// <remarks> The returned task should complete as soon as the data is safely persisted. </remarks>
