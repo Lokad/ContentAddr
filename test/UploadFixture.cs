@@ -30,6 +30,39 @@ namespace Lokad.ContentAddr.Tests
         }
 
         [Fact]
+        public async Task multiple()
+        {
+            var r1 = await Store.WriteAsync(new byte[0], default);
+            Assert.Equal("D41D8CD98F00B204E9800998ECF8427E", r1.Hash.ToString());
+
+            var r2 = await Store.WriteAsync(new byte[] { 0x01, 0x02 }, default);
+            Assert.Equal("0CB988D042A7F28DD5FE2B55B3F5AC7A", r2.Hash.ToString());
+
+            var r3 = await Store.WriteAsync(new byte[] { 0x01, 0x02, 0x03, 0x04 }, default);
+            Assert.Equal("08D6C05A21512A79A1DFEB9D2A8F262F", r3.Hash.ToString());
+
+            using (var s1 = await Store[r1.Hash].OpenAsync(CancellationToken.None))
+            {
+                var bytes = new byte[6];
+                Assert.Equal(0, await s1.ReadAsync(bytes, 0, bytes.Length, CancellationToken.None));
+            }
+
+            using (var s2 = await Store[r2.Hash].OpenAsync(CancellationToken.None))
+            {
+                var bytes = new byte[6];
+                Assert.Equal(2, await s2.ReadAsync(bytes, 0, bytes.Length, CancellationToken.None));
+                Assert.Equal(new byte[] { 0x01, 0x02, 0, 0, 0, 0 }, bytes);
+            }
+
+            using (var s3 = await Store[r3.Hash].OpenAsync(CancellationToken.None))
+            {
+                var bytes = new byte[6];
+                Assert.Equal(4, await s3.ReadAsync(bytes, 0, bytes.Length, CancellationToken.None));
+                Assert.Equal(new byte[] { 0x01, 0x02, 0x03, 0x04, 0, 0 }, bytes);
+            }
+        }
+
+        [Fact]
         public async Task small_file()
         {
             var file = FakeFile(1024);
