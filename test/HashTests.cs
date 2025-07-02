@@ -3,32 +3,32 @@ using Xunit;
 
 namespace Lokad.ContentAddr.Tests
 {
-    public sealed class hash
+    public sealed class HashTests
     {
         [Fact]
-        public void byte_constructor()
+        public void ByteConstructor()
         {
-            var hash = new Hash(new byte[] {
+            Hash hash = new Hash([
                 0x00, 0x11, 0x22, 0x33,
                 0x44, 0x55, 0x66, 0x77,
                 0x88, 0x99, 0xAA, 0xBB,
                 0xCC, 0xDD, 0xEE, 0xFF
-            });
+            ]);
 
             Assert.Equal("00112233445566778899AABBCCDDEEFF", hash.ToString());
         }
 
         [Fact]
-        public void byte_constructor_throws()
+        public void ByteConstructorThrows()
         {
             try
             {
-                new Hash(new byte[] {
+                _ = new Hash([
                     0x00, 0x11, 0x22, 0x33,
                     0x44, 0x55, 0x66, 0x77,
                     0x88, 0x99, 0xAA, 0xBB,
                     0xCC, 0xDD, 0xEE // Missing 16th
-                });
+                ]);
 
                 Assert.True(false);
             }
@@ -39,18 +39,18 @@ namespace Lokad.ContentAddr.Tests
         }
 
         [Fact]
-        public void string_constructor()
+        public void StringConstructor()
         {
-            var hash = new Hash("00112233445566778899AABBCCDDEEFF");
+            Hash hash = new Hash("00112233445566778899AABBCCDDEEFF");
             Assert.Equal("00112233445566778899AABBCCDDEEFF", hash.ToString());
         }
 
         [Fact]
-        public void string_constructor_throws()
+        public void StringConstructorThrows()
         {
             try
             {
-                new Hash("00112233445566778899AABBCCDDEEFFbad");
+                _ = new Hash("00112233445566778899AABBCCDDEEFFbad");
 
                 Assert.True(false);
             }
@@ -61,11 +61,11 @@ namespace Lokad.ContentAddr.Tests
         }
 
         [Fact]
-        public void equal()
+        public void HashEqual()
         {
-            var a = new Hash("00112233445566778899AABBCCDDEEFF");
-            var b = new Hash("00112233445566778899AABBCCDDEEFF");
-            var c = new Hash("00112233445566778899AABBCCDDFFEE");
+            Hash a = new Hash("00112233445566778899AABBCCDDEEFF");
+            Hash b = new Hash("00112233445566778899AABBCCDDEEFF");
+            Hash c = new Hash("00112233445566778899AABBCCDDFFEE");
 
             Assert.True(a.Equals(b));
             Assert.False(a.Equals(c));
@@ -75,16 +75,16 @@ namespace Lokad.ContentAddr.Tests
         }
 
         [Fact]
-        public void gethashcode()
+        public void HashCode()
         {
-            var hash = new Hash("00112233445566778899AABBCCDDEEFF");
+            Hash hash = new Hash("00112233445566778899AABBCCDDEEFF");
             Assert.Equal(0x44556677, hash.GetHashCode());
         }
 
         [Fact]
-        public void startswith()
+        public void StartsWith()
         {
-            var hash = new Hash("00112233445566778899AABBCCDDEEFF");
+            Hash hash = new Hash("00112233445566778899AABBCCDDEEFF");
             Assert.True(hash.StartsWith("00112233445566778899AABBCCDDEEFF"));
             Assert.True(hash.StartsWith("00112233445566778899AABBCCDDEE"));
             Assert.True(hash.StartsWith("0011223344"));
@@ -94,12 +94,12 @@ namespace Lokad.ContentAddr.Tests
         }
 
         [Fact]
-        public void compare()
+        public void Compare()
         {
-            var a = new Hash("00112233445566778899AABBCCDDEEFF");
-            var b = new Hash("00112233445566778899AABBCCDDEEFF");
-            var c = new Hash("00112233445566778899AABBCCDDFFEE");
-            var d = new Hash("00112233445577668899AABBCCDDFFEE");
+            Hash a = new Hash("00112233445566778899AABBCCDDEEFF");
+            Hash b = new Hash("00112233445566778899AABBCCDDEEFF");
+            Hash c = new Hash("00112233445566778899AABBCCDDFFEE");
+            Hash d = new Hash("00112233445577668899AABBCCDDFFEE");
 
             Assert.Equal(0, a.CompareTo(b));
             Assert.Equal(-1, a.CompareTo(c));
@@ -109,57 +109,57 @@ namespace Lokad.ContentAddr.Tests
         }
 
         [Fact]
-        public void try_parse()
+        public void TryParse()
         {
-            Assert.True(Hash.TryParse("00112233445566778899AABBCCDDEEFF", out var hash));
+            Assert.True(Hash.TryParse("00112233445566778899AABBCCDDEEFF", out Hash hash));
             Assert.Equal("00112233445566778899AABBCCDDEEFF", hash.ToString());
         }
 
         [Fact]
-        public void try_parse_fail()
+        public void TryParseFail()
         {
-            Assert.False(Hash.TryParse("bad", out var hash));
+            Assert.False(Hash.TryParse("bad", out Hash hash));
             Assert.Equal("00000000000000000000000000000000", hash.ToString());
         }
 
         [Fact]
-        public void to_base64()
+        public void ToBase64()
         {
-            var hash = new Hash("00112233445566778899AABBCCDDEEFF");
+            Hash hash = new Hash("00112233445566778899AABBCCDDEEFF");
             Assert.Equal("ABEiM0RVZneImaq7zN3u/w==", hash.ToBase64());
         }
 
         [Fact]
-        public void from_bytes()
+        public void FromBytes()
         {
-            var hash = Hash.FromBytes(new byte[] {
+            Hash hash = Hash.FromBytes([
                 0x00, 0x11, 0x22, 0x33,
                 0x44, 0x55, 0x66, 0x77,
                 0x88, 0x99, 0xAA, 0xBB,
                 0xCC, 0xDD, 0xEE, 0xFF
-            });
+            ]);
 
             Assert.Equal("00112233445566778899AABBCCDDEEFF", hash.ToString());
         }
 
         [Fact]
-        public void from_bytes_offset()
+        public void FromBytesOffset()
         {
-            var hash = Hash.FromBytes(new byte[] {
+            Hash hash = Hash.FromBytes([
                 0x00, 0x00, 0x00, 0x00,
                 0x00, 0x11, 0x22, 0x33,
                 0x44, 0x55, 0x66, 0x77,
                 0x88, 0x99, 0xAA, 0xBB,
                 0xCC, 0xDD, 0xEE, 0xFF
-            }, 4);
+            ], 4);
 
             Assert.Equal("00112233445566778899AABBCCDDEEFF", hash.ToString());
         }
 
         [Fact]
-        public void from_bytes_rospan()
+        public void FromBytesRospan()
         {
-            var hash = Hash.FromBytes(new byte[] {
+            Hash hash = Hash.FromBytes(new byte[] {
                 0x00, 0x00, 0x00, 0x00,
                 0x00, 0x11, 0x22, 0x33,
                 0x44, 0x55, 0x66, 0x77,
@@ -171,10 +171,10 @@ namespace Lokad.ContentAddr.Tests
         }
 
         [Fact]
-        public void to_bytes()
+        public void ToBytes()
         {
-            var bytes = new byte[16];
-            var hash = new Hash("00112233445566778899AABBCCDDEEFF");
+            byte[] bytes = new byte[16];
+            Hash hash = new Hash("00112233445566778899AABBCCDDEEFF");
 
             hash.ToBytes(bytes);
 
@@ -182,10 +182,10 @@ namespace Lokad.ContentAddr.Tests
         }
 
         [Fact]
-        public void to_bytes_offset()
+        public void ToBytesOffset()
         {
-            var bytes = new byte[20];
-            var hash = new Hash("00112233445566778899AABBCCDDEEFF");
+            byte[] bytes = new byte[20];
+            Hash hash = new Hash("00112233445566778899AABBCCDDEEFF");
 
             hash.ToBytes(bytes, 4);
 
@@ -193,10 +193,10 @@ namespace Lokad.ContentAddr.Tests
         }
 
         [Fact]
-        public void to_bytes_span()
+        public void ToBytesSpan()
         {
-            var bytes = new byte[20];
-            var hash = new Hash("00112233445566778899AABBCCDDEEFF");
+            byte[] bytes = new byte[20];
+            Hash hash = new Hash("00112233445566778899AABBCCDDEEFF");
 
             hash.ToBytes(bytes.AsSpan(4));
 
@@ -204,9 +204,29 @@ namespace Lokad.ContentAddr.Tests
         }
 
         [Fact]
-        public void size()
+        public void Size()
         {
             Assert.Equal(16, Hash.Size);
+        }
+
+        [Fact]
+        public void ToJson()
+        {
+            Hash hash = new Hash("00112233445566778899AABBCCDDEEFF");
+            string json = System.Text.Json.JsonSerializer.Serialize(hash);
+
+            Assert.Equal("\"00112233445566778899AABBCCDDEEFF\"", json);
+        }
+
+
+        [Fact]
+        public void FromJson()
+        {
+            Hash expected = new Hash("00112233445566778899AABBCCDDEEFF");
+            const string json = "\"00112233445566778899AABBCCDDEEFF\"";
+            Hash hash = System.Text.Json.JsonSerializer.Deserialize<Hash>(json);
+
+            Assert.Equal(expected, hash);
         }
     }
 }

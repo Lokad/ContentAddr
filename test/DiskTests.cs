@@ -5,15 +5,14 @@ using Xunit;
 
 namespace Lokad.ContentAddr.Tests
 {
-    public sealed class disk : UploadFixture, IDisposable
+    public sealed class DiskTests : UploadFixture, IDisposable
     {
         /// <summary> Temporary directory where files are stored. </summary>
-        private string _path;
+        private readonly string _path;
 
-        
-        public disk()
+        public DiskTests()
         {
-            _path = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));            
+            _path = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
             Store = new DiskStore(_path);
         }
 
