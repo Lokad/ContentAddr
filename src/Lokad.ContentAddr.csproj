@@ -6,12 +6,12 @@
     <Company>Lokad</Company>
     <Copyright>Copyright © Lokad 2025</Copyright>
     
-    <AssemblyVersion>2.1.0.0</AssemblyVersion>
-    <FileVersion>2.1.0</FileVersion>
+    <AssemblyVersion>2.2.0.0</AssemblyVersion>
+    <FileVersion>2.2.0</FileVersion>
     <PackageId>Lokad.ContentAddr</PackageId>
-    <PackageVersion>2.1.0</PackageVersion>
+    <PackageVersion>2.2.0</PackageVersion>
     <LangVersion>10</LangVersion>
-    <Version>2.1.0</Version>
+    <Version>2.2.0</Version>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
     <PackageIcon>lokad.png</PackageIcon>
