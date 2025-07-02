@@ -1,16 +1,16 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>netstandard2.1</TargetFrameworks>
+    <TargetFrameworks>net8.0</TargetFrameworks>
     <AssemblyName>Lokad.ContentAddr</AssemblyName>
     <OutputType>Library</OutputType>
     <Company>Lokad</Company>
-    <Copyright>Copyright © Lokad 2022</Copyright>
+    <Copyright>Copyright © Lokad 2025</Copyright>
     
     <AssemblyVersion>2.1.0.0</AssemblyVersion>
     <FileVersion>2.1.0</FileVersion>
     <PackageId>Lokad.ContentAddr</PackageId>
     <PackageVersion>2.1.0</PackageVersion>
-    <LangVersion>7.2</LangVersion>
+    <LangVersion>10</LangVersion>
     <Version>2.1.0</Version>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
