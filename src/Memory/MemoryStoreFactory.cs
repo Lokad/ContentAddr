@@ -1,21 +1,20 @@
 ﻿using System.Collections.Concurrent;
 
-namespace Lokad.ContentAddr.Memory
+namespace Lokad.ContentAddr.Memory;
+
+public sealed class MemoryStoreFactory : IStoreFactory
 {
-    public sealed class MemoryStoreFactory : IStoreFactory
-    {
-        /// <summary> All in-memory stores, by account. </summary>
-        private readonly ConcurrentDictionary<long, MemoryStore> _stores = 
-            new ConcurrentDictionary<long, MemoryStore>();
+    /// <summary> All in-memory stores, by account. </summary>
+    private readonly ConcurrentDictionary<long, MemoryStore> _stores = 
+        new();
 
-        /// <see cref="IStoreFactory.this"/>
-        public IStore<IReadBlobRef> this[long account] =>
-            _stores.GetOrAdd(account, a => new MemoryStore());
-        
-        /// <see cref="IStoreFactory.ReadOnlyStore"/>
-        public IReadOnlyStore<IReadBlobRef> ReadOnlyStore(long account) => this[account];
+    /// <inheritdoc/>
+    public IStore<IReadBlobRef> this[long account] =>
+        _stores.GetOrAdd(account, _ => new MemoryStore());
 
-        /// <see cref="IStoreFactory.Describe"/>
-        public string Describe() => "[CAS] memory " + _stores.GetHashCode().ToString("X8");
-    }
+    /// <inheritdoc/>
+    public IReadOnlyStore<IReadBlobRef> ReadOnlyStore(long account) => this[account];
+
+    /// <inheritdoc/>
+    public string Describe() => "[CAS] memory " + _stores.GetHashCode().ToString("X8");
 }

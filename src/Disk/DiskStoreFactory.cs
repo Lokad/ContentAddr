@@ -1,23 +1,22 @@
-﻿namespace Lokad.ContentAddr.Disk
+﻿namespace Lokad.ContentAddr.Disk;
+
+public sealed class DiskStoreFactory : IStoreFactory
 {
-    public sealed class DiskStoreFactory : IStoreFactory
-    {
-        /// <summary> The root directory of the store. </summary>
-        private readonly string _path;
+    /// <summary> The root directory of the store. </summary>
+    private readonly string _path;
 
-        public DiskStoreFactory(string path) { _path = path; }
+    public DiskStoreFactory(string path) { _path = path; }
 
-        /// <see cref="IStoreFactory.this"/>
-        IStore<IReadBlobRef> IStoreFactory.this[long account] => this[account];
+    /// <inheritdoc/>
+    IStore<IReadBlobRef> IStoreFactory.this[long account] => this[account];
 
-        /// <see cref="IStoreFactory.this"/>
-        public DiskStore this[long account] => 
-            new DiskStore(DiskStorePaths.PathOfAccount(_path, account));
+    /// <inheritdoc/>
+    public DiskStore this[long account] => 
+        new(DiskStorePaths.PathOfAccount(_path, account));
 
-        /// <see cref="IStoreFactory.ReadOnlyStore"/>
-        public IReadOnlyStore<IReadBlobRef> ReadOnlyStore(long account) => this[account];
+    /// <inheritdoc/>
+    public IReadOnlyStore<IReadBlobRef> ReadOnlyStore(long account) => this[account];
 
-        /// <see cref="IStoreFactory.Describe"/>
-        public string Describe() => "[CAS] " + _path;
-    }
+    /// <inheritdoc/>
+    public string Describe() => "[CAS] " + _path;
 }
