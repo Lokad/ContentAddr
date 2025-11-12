@@ -104,7 +104,9 @@ namespace Lokad.ContentAddr.Azure
         public static async Task DownloadRangeAsync(BlobClient blob, byte[] into, int intoOffset, long sourceOffset, int count, CancellationToken cancel)
         {
             var result = await blob.DownloadStreamingAsync(
-                new HttpRange(sourceOffset, count),
+                range: new HttpRange(sourceOffset, count),
+                conditions: null,
+                rangeGetContentHash: false,
                 cancellationToken: cancel);
 
             using var stream = result.Value.Content;
