@@ -1,6 +1,18 @@
 namespace Lokad.ContentAddr;
 
 /// <summary> A written blob. </summary>
-/// <param name="Hash"> The hash of the written blob. </param>
-/// <param name="Size"> The size of the written blob, in bytes. </param>
-public readonly record struct WrittenBlob(Hash Hash, long Size);
+public struct WrittenBlob
+{
+    public WrittenBlob(Hash hash, long size)
+    {
+        Hash = hash;
+        Size = size;
+    }
+
+    /// <summary> The hash of the written blob. </summary>
+    public Hash Hash { get; }
+
+    /// <summary> The size of the written blob, in bytes. </summary>
+    public long Size { get; }
+}
+
