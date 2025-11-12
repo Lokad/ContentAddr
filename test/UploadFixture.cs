@@ -157,7 +157,7 @@ public abstract class UploadFixture
                 }
 
                 if (pos > file.Length)
-                    Assert.True(false, "Read function called after it had returned zero.");
+                    Assert.Fail("Read function called after it had returned zero.");
 
                 int read = Math.Min(Math.Min(file.Length - pos, 17), count);
 

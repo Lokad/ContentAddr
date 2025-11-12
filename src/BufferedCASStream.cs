@@ -68,7 +68,7 @@ public sealed class BufferedCASStream : Stream
         // we do write "in sync", but we are bufferring here, as the store
         // writer is buffering.
         _w.Write(buffer.Span);
-        return ValueTask.CompletedTask;
+        return default; // ValueTask.CompledTask if not netstandard
     }
 
     /// <inheritdoc/>
