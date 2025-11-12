@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="src/Lokad.ContentAddr.csproj" />
+  <Project Path="test/Lokad.ContentAddr.Tests.csproj" />
+</Solution>

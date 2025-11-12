@@ -1,17 +1,16 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>net8.0</TargetFrameworks>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
     <AssemblyName>Lokad.ContentAddr</AssemblyName>
     <OutputType>Library</OutputType>
     <Company>Lokad</Company>
     <Copyright>Copyright © Lokad 2025</Copyright>
     
-    <AssemblyVersion>2.2.0.0</AssemblyVersion>
-    <FileVersion>2.2.0</FileVersion>
+    <AssemblyVersion>2.3.0.0</AssemblyVersion>
+    <FileVersion>2.3.0</FileVersion>
     <PackageId>Lokad.ContentAddr</PackageId>
-    <PackageVersion>2.2.0</PackageVersion>
-    <LangVersion>10</LangVersion>
-    <Version>2.2.0</Version>
+    <PackageVersion>2.3.0</PackageVersion>
+    <Version>2.3.0</Version>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
     <PackageIcon>lokad.png</PackageIcon>
@@ -19,11 +18,7 @@
     <Description>In-memory and on-disk content-addressable storage</Description>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Lokad.Logging" Version="1.0.9" />
-    <PackageReference Include="System.Memory" Version="4.5.4" />
-    <PackageReference Include="System.Runtime" Version="4.3.1" />
-    <PackageReference Include="System.Runtime.Extensions" Version="4.3.1" />
-    <PackageReference Include="System.ValueTuple" Version="4.5.0" />
+    <PackageReference Include="Lokad.Logging" Version="2.0.0" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\LICENSE.txt">
