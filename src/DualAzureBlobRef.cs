@@ -1,5 +1,4 @@
-﻿using Lokad.Logging;
-using Azure.Storage.Blobs;
+﻿using Azure.Storage.Blobs;
 using System;
 using System.IO;
 using System.Threading;
@@ -8,20 +7,6 @@ using Azure.Storage.Blobs.Models;
 
 namespace Lokad.ContentAddr.Azure
 {
-
-    public interface IDualBlobLogger : ITrace
-    {
-        [Error("Blob {hash} in account {account} was not in new storage")]
-        void InexistantBlob(string account, string hash);
-
-        [Error("Copy for blob {hash} in account {account} failed")]
-        void FailedCopy(string account, string hash);
-
-        [Error("Blob {hash} in account {account} cannot be copied to the new storage")]
-        void InvalidBlob(string account, string hash);
-
-    }
-
     /// <summary> The <see cref="ContentAddr.IAzureReadBlobRef"/> for an azure dual persistent store. </summary>
     /// <see cref="DualAzureReadOnlyStore"/>
     /// <remarks>
@@ -33,8 +18,6 @@ namespace Lokad.ContentAddr.Azure
     /// </remarks>
     public sealed class DualAzureBlobRef : IAzureReadBlobRef
     {
-        private static readonly IDualBlobLogger Log = Tracer.Bind(() => Log);
-
         public DualAzureBlobRef(
             string realm,
             Hash hash,
@@ -99,7 +82,6 @@ namespace Lokad.ContentAddr.Azure
                     case CopyStatus.Failed:
                         if (await AzureRetry.Do(OldBlob.ExistsAsync, cancel).ConfigureAwait(false))
                         {
-                            Log.FailedCopy(Realm, NewBlob.Name);
                             _ = StartCopy(cancel);
                             _chosen = new AzureBlobRef(Realm, Hash, OldBlob, Deleted);
                         }
@@ -120,7 +102,6 @@ namespace Lokad.ContentAddr.Azure
             {
                 if (await AzureRetry.Do(OldBlob.ExistsAsync, cancel).ConfigureAwait(false))
                 {
-                    Log.InexistantBlob(Realm, NewBlob.Name);
                     _ = StartCopy(cancel);
                     _chosen = new AzureBlobRef(Realm, Hash, OldBlob, Deleted);
                 }
