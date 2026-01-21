@@ -23,7 +23,7 @@
     <PackageReference Include="System.Text.Json" Version="8.0.0" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\LICENSE.txt">
+    <None Include="..\..\LICENSE.txt">
       <Pack>True</Pack>
       <PackagePath></PackagePath>
     </None>

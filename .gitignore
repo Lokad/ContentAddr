@@ -2,6 +2,7 @@ artifacts
 bin
 obj
 _Resharper*
+.idea/
 *.user
 *.build.csdef
 *.suo
