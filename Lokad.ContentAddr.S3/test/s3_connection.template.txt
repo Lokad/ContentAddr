@@ -1,0 +1,1 @@
+Bucket=;AccessKey=;SecretKey=;ServiceURL=https://example.com/;ForcePathStyle=true

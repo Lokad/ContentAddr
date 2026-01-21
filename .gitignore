@@ -11,3 +11,4 @@ csx
 Thumbs.db
 Lokad.ContentAddr.Azure/test/azure_connection.txt
 Lokad.ContentAddr.Azure/test/azure_dual_connection.txt
+Lokad.ContentAddr.S3/test/s3_connection.txt

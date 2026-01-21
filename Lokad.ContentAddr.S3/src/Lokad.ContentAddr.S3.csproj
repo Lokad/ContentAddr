@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <AssemblyName>Lokad.ContentAddr.S3</AssemblyName>
+    <RuntimeIdentifiers>win</RuntimeIdentifiers>
+    <OutputType>Library</OutputType>
+    <Company>Lokad</Company>
+    <Copyright>Copyright © Lokad 2026</Copyright>
+
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0</FileVersion>
+    <PackageId>Lokad.ContentAddr.S3</PackageId>
+    <PackageVersion>1.0.0</PackageVersion>
+    <LangVersion>8.0</LangVersion>
+    <Version>1.0.0</Version>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
+    <PackageIcon>lokad.png</PackageIcon>
+    <PackageProjectUrl>https://github.com/Lokad/ContentAddr</PackageProjectUrl>
+    <Description>S3-compatible object storage support for Lokad.ContentAddr</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AWSSDK.S3" Version="3.7.301" />
+    <PackageReference Include="Lokad.ContentAddr" Version="2.0.0" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.2" />
+    <PackageReference Include="System.Linq.Async" Version="6.0.1" />
+    <PackageReference Include="System.Memory" Version="4.5.4" />
+    <PackageReference Include="System.ValueTuple" Version="4.5.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\LICENSE.txt">
+      <Pack>True</Pack>
+      <PackagePath></PackagePath>
+    </None>
+    <None Include="..\lokad.png">
+      <Pack>True</Pack>
+      <PackagePath></PackagePath>
+    </None>
+  </ItemGroup>
+  
+</Project>

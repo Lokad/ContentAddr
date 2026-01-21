@@ -1,0 +1,12 @@
+artifacts
+bin
+obj
+_Resharper*
+*.user
+*.build.csdef
+*.suo
+.vs/
+csx
+Thumbs.db
+test/azure_connection.txt
+test/azure_dual_connection.txt

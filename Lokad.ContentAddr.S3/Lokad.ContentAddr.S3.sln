@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.2.32630.192
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Lokad.ContentAddr.S3", "src\Lokad.ContentAddr.S3.csproj", "{AC03061D-6376-4918-89AE-7B1D6661AC94}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Lokad.ContentAddr.S3.Tests", "test\Lokad.ContentAddr.S3.Tests.csproj", "{D348400F-7835-488E-A95E-79D1CB545327}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{AC03061D-6376-4918-89AE-7B1D6661AC94}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AC03061D-6376-4918-89AE-7B1D6661AC94}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AC03061D-6376-4918-89AE-7B1D6661AC94}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AC03061D-6376-4918-89AE-7B1D6661AC94}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D348400F-7835-488E-A95E-79D1CB545327}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D348400F-7835-488E-A95E-79D1CB545327}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D348400F-7835-488E-A95E-79D1CB545327}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D348400F-7835-488E-A95E-79D1CB545327}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {48447358-1B7D-47DD-98CB-1E8D476C31A4}
+	EndGlobalSection
+EndGlobal
