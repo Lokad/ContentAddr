@@ -9,3 +9,5 @@ _Resharper*
 .vs/
 csx
 Thumbs.db
+Lokad.ContentAddr.Azure/test/azure_connection.txt
+Lokad.ContentAddr.Azure/test/azure_dual_connection.txt
