@@ -1,5 +1,4 @@
 using Amazon.S3;
-using Amazon.S3.Model;
 using System;
 using System.Diagnostics;
 using System.Threading;
@@ -52,7 +51,7 @@ namespace Lokad.ContentAddr.S3
 
             try
             {
-                await S3Store.CopyToPersistent(Client, Bucket, TemporaryKey, finalKey, cancel).ConfigureAwait(false);
+                await S3Store.CopyToPersistent(Client, Bucket, TemporaryKey, finalKey, TemporarySize, cancel).ConfigureAwait(false);
             }
             catch (Exception ex)
             {

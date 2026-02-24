@@ -32,6 +32,8 @@ namespace Lokad.ContentAddr.S3
         protected string Bucket { get; }
         /// <summary>Key for the temporary object being built.</summary>
         protected string TemporaryKey { get; }
+        /// <summary>Total number of bytes written to the temporary object.</summary>
+        protected long TemporarySize { get; private set; }
 
         private readonly Func<Task<string>> _uploadIdFactory;
         private Task<string> _uploadIdTask;
@@ -104,6 +106,7 @@ namespace Lokad.ContentAddr.S3
         {
             if (buffer.Length == 0) return Task.CompletedTask;
 
+            TemporarySize += buffer.Length;
             _buffer.Write(buffer.Span);
             return FlushFullPartsAsync(cancel);
         }

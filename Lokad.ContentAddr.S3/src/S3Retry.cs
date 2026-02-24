@@ -13,13 +13,7 @@ namespace Lokad.ContentAddr.S3
         /// <summary> Maximum time for which we retry requests to S3. </summary>
         public static TimeSpan MaxRetries { get; set; } = TimeSpan.FromMinutes(10);
 
-        /// <summary>
-        ///     Maximum time allowed for an action before it is ignored and
-        ///     retried.
-        /// </summary>
-        public static TimeSpan MaxDuration { get; set; } = TimeSpan.FromSeconds(30);
-
-        /// <see cref="OnException"/>
+        /// <see cref="OnRetry"/>
         public delegate void ExceptionLogger(Exception e);
 
         /// <summary>
@@ -65,23 +59,7 @@ namespace Lokad.ContentAddr.S3
 
                 try
                 {
-                    using (var cts = CancellationTokenSource.CreateLinkedTokenSource(cancel))
-                    {
-                        cts.CancelAfter(MaxDuration);
-
-                        var task = action(cts.Token);
-                        await Task.WhenAny(task, Task.Delay(MaxDuration, cts.Token)).ConfigureAwait(false);
-
-                        var timedOut = !cancel.IsCancellationRequested && cts.Token.IsCancellationRequested;
-
-                        if (task.IsCompleted && !timedOut)
-                            return await task.ConfigureAwait(false);
-
-                        if (DateTime.UtcNow >= until)
-                            throw new OperationCanceledException($"Retried for more than {MaxRetries} without success.");
-
-                        OnRetry?.Invoke(new OperationCanceledException(cts.Token));
-                    }
+                    return await action(cancel);
                 }
                 catch (Exception e) when (DateTime.UtcNow < until && ShouldRetry(e))
                 {
@@ -120,26 +98,8 @@ namespace Lokad.ContentAddr.S3
             {
                 try
                 {
-                    using (var cts = CancellationTokenSource.CreateLinkedTokenSource(cancel))
-                    {
-                        cts.CancelAfter(MaxDuration);
-
-                        var task = action(cts.Token);
-                        await Task.WhenAny(task, Task.Delay(MaxDuration, cts.Token)).ConfigureAwait(false);
-
-                        var timedOut = !cancel.IsCancellationRequested && cts.Token.IsCancellationRequested;
-
-                        if (task.IsCompleted && !timedOut)
-                        {
-                            await task.ConfigureAwait(false);
-                            return;
-                        }
-
-                        if (DateTime.UtcNow >= until)
-                            throw new OperationCanceledException($"Retried for more than {MaxRetries} without success.");
-
-                        OnRetry?.Invoke(new OperationCanceledException(cts.Token));
-                    }
+                    await action(cancel);
+                    return;
                 }
                 catch (Exception e) when (DateTime.UtcNow < until && ShouldRetry(e))
                 {

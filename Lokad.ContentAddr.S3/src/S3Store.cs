@@ -21,6 +21,24 @@ namespace Lokad.ContentAddr.S3
     {
         private readonly S3Writer.OnCommit _onCommit;
         private readonly string _stagingPrefix;
+        /// <summary>
+        ///     `CopyObject` cannot copy objects larger than 5 GiB in one request.
+        ///     We use this threshold to switch to multipart copy.
+        /// </summary>
+        private const long CopyObjectLimit = 5L * 1024 * 1024 * 1024;
+        /// <summary>
+        ///     S3 multipart copy enforces a minimum part size of 5 MiB, except for the final part.
+        /// </summary>
+        private const long MultipartCopyMinPartSize = 5L * 1024 * 1024;
+        /// <summary>
+        ///     Default part size used for multipart copy to keep part counts moderate for large blobs
+        ///     while avoiding tiny requests.
+        /// </summary>
+        private const long MultipartCopyDefaultPartSize = 64L * 1024 * 1024;
+        /// <summary>
+        ///     S3 limits multipart uploads to at most 10,000 parts.
+        /// </summary>
+        private const int MultipartCopyMaxParts = 10_000;
 
         public S3Store(
             string realm,
@@ -72,7 +90,6 @@ namespace Lokad.ContentAddr.S3
                 bufferSize = (int)metadata.ContentLength;
 
             var buffer = new byte[bufferSize];
-            long position = 0;
 
             using (var response = await Client.GetObjectAsync(Bucket, tempKey, cancel).ConfigureAwait(false))
             using (var stream = response.ResponseStream)
@@ -81,7 +98,6 @@ namespace Lokad.ContentAddr.S3
                 do
                 {
                     read = await stream.ReadAsync(buffer, 0, bufferSize, cancel).ConfigureAwait(false);
-                    position += read;
                     if (read > 0)
                         md5.TransformBlock(buffer, 0, read, buffer, 0);
                 } while (read > 0);
@@ -96,7 +112,7 @@ namespace Lokad.ContentAddr.S3
                 var exists = await ObjectExistsAsync(Client, Bucket, finalKey, cancel).ConfigureAwait(false);
                 if (!exists)
                 {
-                    await CopyToPersistent(Client, Bucket, tempKey, finalKey, cancel).ConfigureAwait(false);
+                    await CopyToPersistent(Client, Bucket, tempKey, finalKey, metadata.ContentLength, cancel).ConfigureAwait(false);
                 }
 
                 var finalMeta = await Client.GetObjectMetadataAsync(Bucket, finalKey, cancel).ConfigureAwait(false);
@@ -151,11 +167,21 @@ namespace Lokad.ContentAddr.S3
             Task.Delay(wait).ContinueWith(_ => client.DeleteObjectAsync(bucket, key));
         }
 
+        /// <summary>
+        ///     Promotes a staged object into its persistent key.
+        /// </summary>
+        /// <remarks>
+        ///     Uses a single `CopyObject` call when the source is at most 5 GiB.
+        ///     For larger sources, performs a multipart server-side copy to comply with S3 limits.
+        ///     The source size in bytes is required so the method can choose between
+        ///     single-request and multipart copy without an additional metadata round-trip.
+        /// </remarks>
         public static async Task CopyToPersistent(
             IAmazonS3 client,
             string bucket,
             string sourceKey,
             string destinationKey,
+            long sourceSize,
             CancellationToken cancel)
         {
             await S3Retry.Do(
@@ -163,21 +189,119 @@ namespace Lokad.ContentAddr.S3
                 {
                     try
                     {
-                        await client.CopyObjectAsync(new CopyObjectRequest
+                        if (sourceSize <= CopyObjectLimit)
                         {
-                            SourceBucket = bucket,
-                            SourceKey = sourceKey,
-                            DestinationBucket = bucket,
-                            DestinationKey = destinationKey
-                        }, c).ConfigureAwait(false);
+                            await client.CopyObjectAsync(new CopyObjectRequest
+                            {
+                                SourceBucket = bucket,
+                                SourceKey = sourceKey,
+                                DestinationBucket = bucket,
+                                DestinationKey = destinationKey
+                            }, c).ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            await MultipartCopyToPersistent(client, bucket, sourceKey, destinationKey, sourceSize, c).ConfigureAwait(false);
+                        }
                     }
                     catch
                     {
-                        if (!await ObjectExistsAsync(client, bucket, destinationKey, cancel).ConfigureAwait(false))
+                        if (!await ObjectExistsAsync(client, bucket, destinationKey, c).ConfigureAwait(false))
                             throw;
                     }
                 },
                 cancel).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        ///     Copies a large object (> 5 GiB) using multipart copy.
+        /// </summary>
+        /// <remarks>
+        ///     This is a server-side copy: data is never downloaded by this process.
+        ///     If any part fails, the destination multipart upload is aborted to avoid leaving
+        ///     orphaned in-progress uploads.
+        /// </remarks>
+        private static async Task MultipartCopyToPersistent(
+            IAmazonS3 client,
+            string bucket,
+            string sourceKey,
+            string destinationKey,
+            long sourceSize,
+            CancellationToken cancel)
+        {
+            var initiate = await client.InitiateMultipartUploadAsync(new InitiateMultipartUploadRequest
+            {
+                BucketName = bucket,
+                Key = destinationKey
+            }, cancel).ConfigureAwait(false);
+
+            var uploadId = initiate.UploadId;
+            var partETags = new System.Collections.Generic.List<PartETag>();
+            var partSize = ComputeMultipartCopyPartSize(sourceSize);
+
+            var sw = Stopwatch.StartNew();
+            
+            try
+            {
+                var partNumber = 1;
+                for (long firstByte = 0; firstByte < sourceSize; firstByte += partSize, partNumber++)
+                {
+                    var lastByte = Math.Min(firstByte + partSize - 1, sourceSize - 1);
+                    var response = await client.CopyPartAsync(new CopyPartRequest
+                    {
+                        SourceBucket = bucket,
+                        SourceKey = sourceKey,
+                        DestinationBucket = bucket,
+                        DestinationKey = destinationKey,
+                        UploadId = uploadId,
+                        PartNumber = partNumber,
+                        FirstByte = firstByte,
+                        LastByte = lastByte
+                    }, cancel).ConfigureAwait(false);
+
+                    partETags.Add(new PartETag(partNumber, response.ETag));
+                }
+
+                await client.CompleteMultipartUploadAsync(new CompleteMultipartUploadRequest
+                {
+                    BucketName = bucket,
+                    Key = destinationKey,
+                    UploadId = uploadId,
+                    PartETags = partETags
+                }, cancel).ConfigureAwait(false);
+            }
+            catch
+            {
+                try
+                {
+                    await client.AbortMultipartUploadAsync(new AbortMultipartUploadRequest
+                    {
+                        BucketName = bucket,
+                        Key = destinationKey,
+                        UploadId = uploadId
+                    }, CancellationToken.None).ConfigureAwait(false);
+                }
+                catch
+                {
+                    // If the abort itself fails, nothing we can do.
+                }
+
+                throw;
+            }
+        }
+
+        /// <summary>
+        ///     Computes a part size that is valid for S3 multipart copy.
+        /// </summary>
+        /// <remarks>
+        ///     The chosen size is at least 5 MiB and large enough to keep the total part count
+        ///     within the 10,000-part S3 limit. A 64 MiB default keeps request counts reasonable
+        ///     for common large-object sizes.
+        /// </remarks>
+        private static long ComputeMultipartCopyPartSize(long sourceSize)
+        {
+            var minimumForPartCount = (sourceSize + MultipartCopyMaxParts - 1) / MultipartCopyMaxParts;
+            return Math.Max(MultipartCopyMinPartSize, Math.Max(MultipartCopyDefaultPartSize, minimumForPartCount));
         }
 
         public static async Task<bool> ObjectExistsAsync(

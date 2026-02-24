@@ -1,9 +1,11 @@
-using Lokad.ContentAddr.S3;
 using System;
+using System.Buffers.Binary;
 using System.IO;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace Lokad.ContentAddr.S3.Tests
 {
@@ -12,9 +14,11 @@ namespace Lokad.ContentAddr.S3.Tests
         public static readonly string Config = File.ReadAllText("s3_connection.txt");
 
         private readonly S3StoreFactory _factory;
+        private readonly ITestOutputHelper _output;
 
-        public s3()
+        public s3(ITestOutputHelper output)
         {
+            _output = output;
             _factory = new S3StoreFactory(Config, readOnly: false, testPrefix: Guid.NewGuid().ToString("N"));
 
             var store = (S3Store)_factory.ForAccount(1);
@@ -113,6 +117,69 @@ namespace Lokad.ContentAddr.S3.Tests
                 thrown = true;
             }
             Assert.True(thrown);
+        }
+
+        [Fact(Skip = "Very long")]
+        public async Task upload_6gib_file()
+        {
+            const long gib = 1024L * 1024 * 1024;
+            const int chunkSize = 5 * 1024 * 1024;
+            var totalSize = 6L * gib;
+
+            var store = (S3Store)WriteStore;
+            var nextInt = 0;
+
+            WrittenBlob result;
+            using (var writer = store.StartWriting())
+            {
+                long written = 0;
+                var chunkIndex = 0;
+                while (written < totalSize)
+                {
+                    var count = (int)Math.Min(chunkSize, totalSize - written);
+                    var chunk = new byte[count];
+                    FillChunkWithConsecutiveInt32s(chunk, ref nextInt);
+
+                    await writer.WriteAsync(chunk, 0, count, CancellationToken.None);
+                    written += count;
+                    chunkIndex++;
+                    _output.WriteLine($"chunk {chunkIndex}: +{count} bytes, total {written}/{totalSize}");
+                }
+
+                result = await writer.CommitAsync(CancellationToken.None);
+            }
+
+            Assert.Equal(totalSize, result.Size);
+            //Assert.Equal(uploadedHash, result.Hash);
+            
+            var blob = store[result.Hash];
+            Assert.True(await blob.ExistsAsync(CancellationToken.None));
+            Assert.Equal(totalSize, await blob.GetSizeAsync(CancellationToken.None));
+
+            Hash downloadedHash;
+            using (var stream = await blob.OpenAsync(CancellationToken.None))
+            {
+                var buffer = new byte[8 * 1024 * 1024];
+                using var downloadedMd5 = MD5.Create();
+
+                int read;
+                while ((read = await stream.ReadAsync(buffer, 0, buffer.Length, CancellationToken.None)) > 0)
+                    downloadedMd5.TransformBlock(buffer, 0, read, buffer, 0);
+
+                downloadedMd5.TransformFinalBlock(Array.Empty<byte>(), 0, 0);
+                downloadedHash = new Hash(downloadedMd5.Hash);
+            }
+
+            Assert.Equal(result.Hash, downloadedHash);
+        }
+
+        private static void FillChunkWithConsecutiveInt32s(byte[] chunk, ref int nextInt)
+        {
+            for (var offset = 0; offset < chunk.Length; offset += sizeof(int))
+            {
+                BinaryPrimitives.WriteInt32LittleEndian(chunk.AsSpan(offset, sizeof(int)), nextInt);
+                nextInt++;
+            }
         }
     }
 }
