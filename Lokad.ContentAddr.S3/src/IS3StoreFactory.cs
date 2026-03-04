@@ -26,5 +26,10 @@ namespace Lokad.ContentAddr.S3
         /// <summary> Retrieve all accounts that have blobs in stores from this factory. </summary>
         /// <remarks> Accounts are sorted in ascending order. </remarks>
         Task<IReadOnlyList<long>> GetAccountsAsync(CancellationToken cancel);
+
+        /// <summary>
+        ///     Deletes temporary blobs from the staging prefix that are older than 2 days.
+        /// </summary>
+        Task RemoveOldStagingAsync(CancellationToken cancel);
     }
 }

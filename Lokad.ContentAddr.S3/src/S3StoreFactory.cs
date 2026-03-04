@@ -126,6 +126,86 @@ namespace Lokad.ContentAddr.S3
             return accounts.OrderBy(a => a).ToArray();
         }
 
+        public async Task RemoveOldStagingAsync(CancellationToken cancel)
+        {
+            // Algorithm overview:
+            // 1) Enumerate objects under the staging prefix only.
+            // 2) Parse the leading yyyy-MM-dd segment from each staging key.
+            // 3) Keep objects older than 2 days.
+            // 4) Delete selected staging objects in batches of up to 1000 keys.
+            var stagingPrefix = NormalizePrefix(_stagingPrefix);
+            var stagingCutoffDate = DateTime.UtcNow.Date.AddDays(-2);
+            string continuationToken = null;
+            var stagingKeysToDelete = new List<KeyVersion>();
+
+            do
+            {
+                var list = await Client.ListObjectsV2Async(new ListObjectsV2Request
+                {
+                    BucketName = _bucket,
+                    Prefix = stagingPrefix,
+                    ContinuationToken = continuationToken
+                }, cancel).ConfigureAwait(false);
+
+                foreach (var stagingObject in list.S3Objects)
+                {
+                    if (!TryGetStagingObjectDate(stagingObject.Key, stagingPrefix, out var stagingDate))
+                        continue;
+
+                    if (stagingDate >= stagingCutoffDate)
+                        continue;
+
+                    stagingKeysToDelete.Add(new KeyVersion { Key = stagingObject.Key });
+                    if (stagingKeysToDelete.Count == 1000)
+                    {
+                        await DeleteStagingBatchAsync(stagingKeysToDelete, cancel).ConfigureAwait(false);
+                        stagingKeysToDelete.Clear();
+                    }
+                }
+
+                continuationToken = list.IsTruncated ? list.NextContinuationToken : null;
+            }
+            while (continuationToken != null);
+
+            if (stagingKeysToDelete.Count > 0)
+            {
+                await DeleteStagingBatchAsync(stagingKeysToDelete, cancel).ConfigureAwait(false);
+            }
+            
+            async Task DeleteStagingBatchAsync(List<KeyVersion> keysToDelete, CancellationToken ct)
+            {
+                await Client.DeleteObjectsAsync(new DeleteObjectsRequest
+                {
+                    BucketName = _bucket,
+                    Objects = keysToDelete
+                }, ct).ConfigureAwait(false);
+            }
+
+            static bool TryGetStagingObjectDate(string objectKey, string prefix, out DateTime stagingDate)
+            {
+                stagingDate = default;
+
+                if (string.IsNullOrWhiteSpace(objectKey))
+                    return false;
+
+                if (!objectKey.StartsWith(prefix, StringComparison.Ordinal))
+                    return false;
+
+                var relativeKey = objectKey.Substring(prefix.Length);
+                var firstSlash = relativeKey.IndexOf('/');
+                if (firstSlash <= 0)
+                    return false;
+
+                var dateSegment = relativeKey.Substring(0, firstSlash);
+                return DateTime.TryParseExact(
+                    dateSegment,
+                    "yyyy-MM-dd",
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
+                    out stagingDate);
+            }
+        }
+
         private static async Task EnsureBucketExists(IAmazonS3 client, string bucket)
         {
             if (await AmazonS3Util.DoesS3BucketExistV2Async(client, bucket).ConfigureAwait(false))
