@@ -184,12 +184,12 @@ namespace Lokad.ContentAddr.S3
             long sourceSize,
             CancellationToken cancel)
         {
-            await S3Retry.Do(
-                async c =>
-                {
-                    try
+            if (sourceSize <= CopyObjectLimit)
+            {
+                await S3Retry.Do(
+                    async c =>
                     {
-                        if (sourceSize <= CopyObjectLimit)
+                        try
                         {
                             await client.CopyObjectAsync(new CopyObjectRequest
                             {
@@ -199,18 +199,18 @@ namespace Lokad.ContentAddr.S3
                                 DestinationKey = destinationKey
                             }, c).ConfigureAwait(false);
                         }
-                        else
+                        catch
                         {
-                            await MultipartCopyToPersistent(client, bucket, sourceKey, destinationKey, sourceSize, c).ConfigureAwait(false);
+                            if (!await ObjectExistsAsync(client, bucket, destinationKey, c).ConfigureAwait(false))
+                                throw;
                         }
-                    }
-                    catch
-                    {
-                        if (!await ObjectExistsAsync(client, bucket, destinationKey, c).ConfigureAwait(false))
-                            throw;
-                    }
-                },
-                cancel).ConfigureAwait(false);
+                    },
+                    cancel).ConfigureAwait(false);
+
+                return;
+            }
+
+            await MultipartCopyToPersistent(client, bucket, sourceKey, destinationKey, sourceSize, cancel).ConfigureAwait(false);
         }
 
         /// <summary>
