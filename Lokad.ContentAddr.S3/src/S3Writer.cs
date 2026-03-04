@@ -24,7 +24,8 @@ namespace Lokad.ContentAddr.S3
             string persistPrefix,
             string temporaryKey,
             OnCommit onCommit,
-            Func<Task<string>> uploadIdFactory) : base(client, bucket, temporaryKey, uploadIdFactory)
+            OnStagingDataSent onStagingDataSent,
+            Func<Task<string>> uploadIdFactory) : base(realm, client, bucket, temporaryKey, onStagingDataSent, uploadIdFactory)
         {
             _realm = realm;
             _persistPrefix = persistPrefix;

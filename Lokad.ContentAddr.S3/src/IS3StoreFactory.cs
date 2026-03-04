@@ -9,7 +9,15 @@ namespace Lokad.ContentAddr.S3
     public interface IS3StoreFactory : IStoreFactory
     {
         /// <summary> Called when committing blobs. </summary>
-        S3Writer.OnCommit OnCommit { get; set; }
+        event S3Writer.OnCommit OnCommit;
+
+        /// <summary>
+        /// Called whenever bytes are uploaded to a staging blob.
+        /// </summary>
+        /// <remarks>
+        /// Parameters are: realm id, staging blob reference (full temporary S3 key), and uploaded byte count.
+        /// </remarks>
+        event S3PreWriter.OnStagingDataSent OnStagingDataSent;
 
         /// <summary> A read-write store for the specified account. </summary>
         IS3Store ForAccount(long account);

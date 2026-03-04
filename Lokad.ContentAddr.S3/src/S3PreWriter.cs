@@ -26,6 +26,9 @@ namespace Lokad.ContentAddr.S3
     /// </remarks>
     public abstract class S3PreWriter : StoreWriter
     {
+        private readonly string _realm;
+        private readonly OnStagingDataSent _onStagingDataSent;
+
         /// <summary>S3 client used for all upload operations.</summary>
         protected IAmazonS3 Client { get; }
         /// <summary>Bucket containing the temporary object.</summary>
@@ -48,15 +51,25 @@ namespace Lokad.ContentAddr.S3
         /// <summary>
         ///     Creates a pre-writer that will stage data into a temporary S3 object.
         /// </summary>
+        /// <param name="realm">Store realm id that owns the staging blob.</param>
         /// <param name="client">S3 client instance.</param>
         /// <param name="bucket">Target bucket name.</param>
         /// <param name="temporaryKey">Temporary object key.</param>
+        /// <param name="onStagingDataSent">Callback invoked when bytes are uploaded to the temporary object.</param>
         /// <param name="uploadIdFactory">Factory to initiate multipart uploads when needed.</param>
-        protected S3PreWriter(IAmazonS3 client, string bucket, string temporaryKey, Func<Task<string>> uploadIdFactory)
+        protected S3PreWriter(
+            string realm,
+            IAmazonS3 client,
+            string bucket,
+            string temporaryKey,
+            OnStagingDataSent onStagingDataSent,
+            Func<Task<string>> uploadIdFactory)
         {
+            _realm = realm ?? throw new ArgumentNullException(nameof(realm));
             Client = client ?? throw new ArgumentNullException(nameof(client));
             Bucket = bucket ?? throw new ArgumentNullException(nameof(bucket));
             TemporaryKey = temporaryKey ?? throw new ArgumentNullException(nameof(temporaryKey));
+            _onStagingDataSent = onStagingDataSent;
             _uploadIdFactory = uploadIdFactory ?? throw new ArgumentNullException(nameof(uploadIdFactory));
         }
 
@@ -64,6 +77,14 @@ namespace Lokad.ContentAddr.S3
         ///     Minimum part size enforced by S3-compatible multipart uploads (5 MB).
         /// </summary>
         private const int MultipartMinPartSize = 5 * 1024 * 1024;
+
+        /// <summary>
+        /// Called when bytes are uploaded to a staging blob.
+        /// </summary>
+        /// <param name="realm">Realm id.</param>
+        /// <param name="stagingBlobReference">Staging blob reference (full temporary S3 key).</param>
+        /// <param name="bytes">Uploaded byte count.</param>
+        public delegate void OnStagingDataSent(string realm, string stagingBlobReference, long bytes);
 
         /// <summary>
         ///     Lazily initializes and caches the multipart upload id.
@@ -95,6 +116,7 @@ namespace Lokad.ContentAddr.S3
             };
 
             var response = await Client.UploadPartAsync(request, cancel).ConfigureAwait(false);
+            _onStagingDataSent?.Invoke(_realm, TemporaryKey, buffer.Length);
 
             return new PartETag(partNumber, response.ETag);
         }
@@ -156,6 +178,7 @@ namespace Lokad.ContentAddr.S3
                         Key = TemporaryKey,
                         InputStream = input
                     }, cancel).ConfigureAwait(false);
+                    _onStagingDataSent?.Invoke(_realm, TemporaryKey, input.Length);
                     _buffer.SetLength(0);
                     return;
                 }
@@ -178,6 +201,7 @@ namespace Lokad.ContentAddr.S3
                     Key = TemporaryKey,
                     InputStream = empty
                 }, cancel).ConfigureAwait(false);
+                _onStagingDataSent?.Invoke(_realm, TemporaryKey, 0);
                 return;
             }
 

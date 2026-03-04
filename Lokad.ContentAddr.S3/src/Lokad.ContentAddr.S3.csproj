@@ -8,12 +8,12 @@
     <Company>Lokad</Company>
     <Copyright>Copyright © Lokad 2026</Copyright>
 
-    <AssemblyVersion>1.1.0.0</AssemblyVersion>
-    <FileVersion>1.1.0</FileVersion>
+    <AssemblyVersion>1.2.0.0</AssemblyVersion>
+    <FileVersion>1.2.0</FileVersion>
     <PackageId>Lokad.ContentAddr.S3</PackageId>
-    <PackageVersion>1.1.0</PackageVersion>
+    <PackageVersion>1.2.0</PackageVersion>
     <LangVersion>8.0</LangVersion>
-    <Version>1.1.0</Version>
+    <Version>1.2.0</Version>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
     <PackageIcon>lokad.png</PackageIcon>

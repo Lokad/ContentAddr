@@ -21,7 +21,14 @@ namespace Lokad.ContentAddr.S3
         private readonly string _testPrefix;
         private readonly string _bucket;
 
-        public S3Writer.OnCommit OnCommit { get; set; }
+        /// <summary> Called when staging data is uploaded. </summary>
+        /// <remarks>
+        /// Parameters are: realm id, staging blob reference (full temporary S3 key), and uploaded byte count.
+        /// </remarks>
+        public event S3PreWriter.OnStagingDataSent OnStagingDataSent;
+
+        /// <summary> Called when committing blobs. </summary>
+        public event S3Writer.OnCommit OnCommit;
 
         public IAmazonS3 Client { get; }
 
@@ -67,7 +74,8 @@ namespace Lokad.ContentAddr.S3
                 _persistPrefix,
                 _stagingPrefix,
                 _deletedPrefix,
-                OnCommit);
+                OnCommit,
+                OnStagingDataSent);
         }
 
         public IStore<IReadBlobRef> this[long account] => ForAccount(account);

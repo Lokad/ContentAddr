@@ -20,6 +20,7 @@ namespace Lokad.ContentAddr.S3
     public sealed class S3Store : S3ReadOnlyStore, IS3Store
     {
         private readonly S3Writer.OnCommit _onCommit;
+        private readonly S3PreWriter.OnStagingDataSent _onStagingDataSent;
         private readonly string _stagingPrefix;
         /// <summary>
         ///     `CopyObject` cannot copy objects larger than 5 GiB in one request.
@@ -47,17 +48,27 @@ namespace Lokad.ContentAddr.S3
             string persistPrefix,
             string stagingPrefix,
             string deletedPrefix,
-            S3Writer.OnCommit onCommit = null)
+            S3Writer.OnCommit onCommit = null,
+            S3PreWriter.OnStagingDataSent onStagingDataSent = null)
             : base(realm, client, bucket, persistPrefix, deletedPrefix)
         {
             _onCommit = onCommit;
+            _onStagingDataSent = onStagingDataSent;
             _stagingPrefix = NormalizePrefix(stagingPrefix);
         }
 
         public StoreWriter StartWriting()
         {
             var tempKey = TempObjectKey();
-            return new S3Writer(Realm, Client, Bucket, PersistPrefix, tempKey, _onCommit, () => InitiateMultipartUploadAsync(tempKey));
+            return new S3Writer(
+                Realm,
+                Client,
+                Bucket,
+                PersistPrefix,
+                tempKey,
+                _onCommit,
+                _onStagingDataSent,
+                () => InitiateMultipartUploadAsync(tempKey));
         }
 
         private string TempObjectKey() =>
