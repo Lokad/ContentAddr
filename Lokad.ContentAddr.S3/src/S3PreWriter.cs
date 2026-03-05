@@ -102,6 +102,10 @@ namespace Lokad.ContentAddr.S3
         /// </summary>
         private async Task<PartETag> UploadPartAsync(int partNumber, ReadOnlyMemory<byte> buffer, CancellationToken cancel)
         {
+            if (partNumber > 10000)
+                throw new NotSupportedException(
+                    $"Maximum size supported by Lokad.ContentAddr.S3 is {MultipartMinPartSize * 10000L} bytes");
+            
             var uploadId = await EnsureUploadIdAsync().ConfigureAwait(false);
             using var stream = ReadOnlyMemoryStream.Create(buffer);
 
@@ -178,7 +182,7 @@ namespace Lokad.ContentAddr.S3
                         Key = TemporaryKey,
                         InputStream = input
                     }, cancel).ConfigureAwait(false);
-                    _onStagingDataSent?.Invoke(_realm, TemporaryKey, input.Length);
+                    _onStagingDataSent?.Invoke(_realm, TemporaryKey, _buffer.Length);
                     _buffer.SetLength(0);
                     return;
                 }
