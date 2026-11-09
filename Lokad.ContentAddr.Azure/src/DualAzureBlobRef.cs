@@ -1,5 +1,6 @@
 ﻿using Azure.Storage.Blobs;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -148,6 +149,24 @@ namespace Lokad.ContentAddr.Azure
         {
             var chosen = await Chosen(cancel).ConfigureAwait(false);
             return await chosen.GetSizeAsync(cancel).ConfigureAwait(false);
+        }
+
+        /// <see cref="IReadBlobRef.GetReferencesAsync"/>
+        /// <remarks>
+        ///     References are written next to the new blob; blobs that were only ever written to 
+        ///     the old storage have theirs next to the old blob.
+        /// </remarks>
+        public async Task<IReadOnlyList<Hash>> GetReferencesAsync(CancellationToken cancel)
+        {
+            var chosen = await Chosen(cancel).ConfigureAwait(false);
+
+            // Throws if the blob does not exist.
+            await chosen.GetSizeAsync(cancel).ConfigureAwait(false);
+
+            var refs = await AzureReferences.ReadAsync(AzureBlobRef.SidecarOf(NewBlob), cancel).ConfigureAwait(false);
+            if (refs.Count > 0) return refs;
+
+            return await AzureReferences.ReadAsync(AzureBlobRef.SidecarOf(OldBlob), cancel).ConfigureAwait(false);
         }
 
         /// <see cref="IReadBlobRef.OpenAsync"/>

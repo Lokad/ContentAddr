@@ -171,6 +171,7 @@ namespace Lokad.ContentAddr.S3
             }
 
             await Client.DeleteObjectAsync(Bucket, objectKey, cancel).ConfigureAwait(false);
+            await Client.DeleteObjectAsync(Bucket, S3References.KeyOf(objectKey), cancel).ConfigureAwait(false);
         }
 
         public static void DeleteObjectAfterDelay(IAmazonS3 client, string bucket, string key, TimeSpan wait)

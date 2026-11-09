@@ -1,5 +1,6 @@
 using Amazon.S3;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
@@ -33,12 +34,16 @@ namespace Lokad.ContentAddr.S3
             _stopwatch = Stopwatch.StartNew();
         }
 
-        protected override Task DoCommitAsync(Hash hash, CancellationToken cancel) =>
-            DoOptCommitAsync(hash, null, cancel);
+        protected override Task DoCommitAsync(Hash hash, IReadOnlyList<Hash> references, CancellationToken cancel) =>
+            DoOptCommitAsync(hash, references, null, cancel);
 
-        protected override async Task DoOptCommitAsync(Hash hash, Func<Task> optionalWrite, CancellationToken cancel)
+        protected override async Task DoOptCommitAsync(Hash hash, IReadOnlyList<Hash> references, Func<Task> optionalWrite, CancellationToken cancel)
         {
             var finalKey = S3ReadOnlyStore.PersistentObjectKey(_persistPrefix, _realm, hash);
+
+            // Existing references win, so this only writes if there are none yet. Done
+            // before the blob is committed so that it never appears without its references.
+            await S3References.WriteIfAbsentAsync(Client, Bucket, finalKey, references, cancel).ConfigureAwait(false);
 
             if (await S3Store.ObjectExistsAsync(Client, Bucket, finalKey, cancel).ConfigureAwait(false))
             {

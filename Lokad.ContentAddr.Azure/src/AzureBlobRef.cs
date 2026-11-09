@@ -1,9 +1,11 @@
 ﻿using Azure;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
+using Azure.Storage.Blobs.Specialized;
 using Azure.Storage.Sas;
 using Newtonsoft.Json;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -67,6 +69,19 @@ namespace Lokad.ContentAddr.Azure
 
             return props.Value.ContentLength;
         }
+
+        /// <see cref="IReadBlobRef.GetReferencesAsync"/>
+        public async Task<IReadOnlyList<Hash>> GetReferencesAsync(CancellationToken cancel)
+        {
+            // Throws if the blob does not exist.
+            await GetSizeAsync(cancel).ConfigureAwait(false);
+
+            return await AzureReferences.ReadAsync(SidecarOf(Blob), cancel).ConfigureAwait(false);
+        }
+
+        /// <summary> The sidecar blob holding the references of a blob. </summary>
+        internal static BlobClient SidecarOf(BlobClient blob) =>
+            blob.GetParentBlobContainerClient().GetBlobClient(AzureReferences.NameOf(blob.Name));
 
         /// <see cref="IReadBlobRef.OpenAsync"/>
         public async Task<Stream> OpenAsync(CancellationToken cancel)

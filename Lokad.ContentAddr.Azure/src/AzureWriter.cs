@@ -1,6 +1,7 @@
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Specialized;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
@@ -38,13 +39,19 @@ namespace Lokad.ContentAddr.Azure
         }
 
         /// <see cref="StoreWriter.DoCommitAsync"/>
-        protected override Task DoCommitAsync(Hash hash, CancellationToken cancel) =>
-            DoOptCommitAsync(hash, null, cancel);
+        protected override Task DoCommitAsync(Hash hash, IReadOnlyList<Hash> references, CancellationToken cancel) =>
+            DoOptCommitAsync(hash, references, null, cancel);
 
         /// <see cref="StoreWriter.DoOptCommitAsync"/>
-        protected override async Task DoOptCommitAsync(Hash hash, Func<Task> optionalWrite, CancellationToken cancel)
+        protected override async Task DoOptCommitAsync(Hash hash, IReadOnlyList<Hash> references, Func<Task> optionalWrite, CancellationToken cancel)
         {
-            var finalBlob = _persistent.GetBlobClient(AzureReadOnlyStore.AzureBlobName(_realm, hash));
+            var blobName = AzureReadOnlyStore.AzureBlobName(_realm, hash);
+            var finalBlob = _persistent.GetBlobClient(blobName);
+
+            // Existing references win, so this only writes if there are none yet. Done
+            // before the blob is committed so that it never appears without its references.
+            await AzureReferences.WriteIfAbsentAsync(
+                _persistent.GetBlobClient(AzureReferences.NameOf(blobName)), references, cancel).ConfigureAwait(false);
 
             // Final blob already exists (maybe it was uploaded earlier), do nothing.
             if (await AzureRetry.OrFalse(async () => await finalBlob.ExistsAsync(cancellationToken: cancel)).ConfigureAwait(false))

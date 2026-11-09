@@ -352,6 +352,7 @@ namespace Lokad.ContentAddr.Azure
                 await blobDeleted.UploadAsync(ms, new BlobUploadOptions { AccessTier = AccessTier.Cool }, cancel);
             }
             await blobToDelete.DeleteAsync(DeleteSnapshotsOption.IncludeSnapshots, cancellationToken: cancel).ConfigureAwait(false);
+            await AzureBlobRef.SidecarOf(blobToDelete).DeleteIfExistsAsync(cancellationToken: cancel).ConfigureAwait(false);
         }            
     }
 }

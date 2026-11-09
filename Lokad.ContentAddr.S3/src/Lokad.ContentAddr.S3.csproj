@@ -8,12 +8,12 @@
     <Company>Lokad</Company>
     <Copyright>Copyright © Lokad 2026</Copyright>
 
-    <AssemblyVersion>1.2.1.0</AssemblyVersion>
-    <FileVersion>1.2.1</FileVersion>
+    <AssemblyVersion>1.3.0.0</AssemblyVersion>
+    <FileVersion>1.3.0</FileVersion>
     <PackageId>Lokad.ContentAddr.S3</PackageId>
-    <PackageVersion>1.2.1</PackageVersion>
+    <PackageVersion>1.3.0</PackageVersion>
     <LangVersion>8.0</LangVersion>
-    <Version>1.2.1</Version>
+    <Version>1.3.0</Version>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
     <PackageIcon>lokad.png</PackageIcon>
@@ -23,10 +23,10 @@
 
   <ItemGroup>
     <PackageReference Include="AWSSDK.S3" Version="3.7.301" />
-    <PackageReference Include="Lokad.ContentAddr" Version="2.0.0" />
+    <PackageReference Include="Lokad.ContentAddr" Version="3.0.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.2" />
     <PackageReference Include="System.Linq.Async" Version="6.0.1" />
-    <PackageReference Include="System.Memory" Version="4.5.4" />
+    <PackageReference Include="System.Memory" Version="4.5.5" />
     <PackageReference Include="System.ValueTuple" Version="4.5.0" />
   </ItemGroup>
 

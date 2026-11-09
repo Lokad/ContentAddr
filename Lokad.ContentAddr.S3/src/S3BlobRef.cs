@@ -2,6 +2,7 @@ using Amazon.S3;
 using Amazon.S3.Model;
 using Newtonsoft.Json;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -59,6 +60,14 @@ namespace Lokad.ContentAddr.S3
         {
             var size = await GetSizeAsync(cancel).ConfigureAwait(false);
             return new S3ReadStream(_client, Bucket, Key, size);
+        }
+
+        public async Task<IReadOnlyList<Hash>> GetReferencesAsync(CancellationToken cancel)
+        {
+            // Throws if the blob does not exist.
+            await GetSizeAsync(cancel).ConfigureAwait(false);
+
+            return await S3References.ReadAsync(_client, Bucket, Key, cancel).ConfigureAwait(false);
         }
 
         public Task<Uri> GetDownloadUrlAsync(

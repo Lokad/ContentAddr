@@ -8,12 +8,12 @@
     <Company>Lokad</Company>
     <Copyright>Copyright © Lokad 2024</Copyright>
 
-    <AssemblyVersion>3.1.4.0</AssemblyVersion>
-    <FileVersion>3.1.4</FileVersion>
+    <AssemblyVersion>3.2.0.0</AssemblyVersion>
+    <FileVersion>3.2.0</FileVersion>
     <PackageId>Lokad.ContentAddr.Azure</PackageId>
-    <PackageVersion>3.1.4</PackageVersion>
+    <PackageVersion>3.2.0</PackageVersion>
     <LangVersion>latest</LangVersion>
-    <Version>3.1.4</Version>
+    <Version>3.2.0</Version>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
     <PackageIcon>lokad.png</PackageIcon>
@@ -23,7 +23,7 @@
 
   <ItemGroup>
     <PackageReference Include="Azure.Storage.Blobs" Version="12.26.0" />
-    <PackageReference Include="Lokad.ContentAddr" Version="2.3.0" />
+    <PackageReference Include="Lokad.ContentAddr" Version="3.0.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageReference Include="System.Linq.Async" Version="6.0.1" PrivateAssets="all" />
   </ItemGroup>
