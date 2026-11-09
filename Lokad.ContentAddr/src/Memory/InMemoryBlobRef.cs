@@ -11,9 +11,12 @@ public class InMemoryBlobRef : IReadBlobRef
     /// <summary> Reference to the original file dictionary. </summary>
     private readonly IDictionary<Hash, byte[]> _files;
 
-    public InMemoryBlobRef(IDictionary<Hash, byte[]> files, Hash hash)
+    private readonly IDictionary<Hash, IReadOnlyList<Hash>> _refs;
+
+    public InMemoryBlobRef(IDictionary<Hash, byte[]> files, Hash hash, IDictionary<Hash, IReadOnlyList<Hash>> refs = null)
     {
         _files = files;
+        _refs = refs;
         Hash = hash;
     }
 
@@ -64,5 +67,22 @@ public class InMemoryBlobRef : IReadBlobRef
             throw new NoSuchBlobException("in-memory", Hash);
 
         return Task.FromResult<Stream>(new MemoryStream(file, writable: false));
+    }
+
+    /// <inheritdoc/>
+    public Task<IReadOnlyList<Hash>> GetReferencesAsync(CancellationToken cancel)
+    {
+        IReadOnlyList<Hash> refs = null;
+        bool exists;
+        lock (_files)
+        {
+            exists = _files.ContainsKey(Hash);
+            if (exists) _refs?.TryGetValue(Hash, out refs);
+        }
+
+        if (!exists)
+            throw new NoSuchBlobException("in-memory", Hash);
+
+        return Task.FromResult(refs ?? System.Array.Empty<Hash>());
     }
 }

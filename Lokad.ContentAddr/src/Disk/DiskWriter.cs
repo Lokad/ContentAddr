@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -37,13 +38,18 @@ public sealed class DiskWriter : StoreWriter
         _temp.WriteAsync(buffer, cancel).AsTask();
 
     /// <inheritdoc cref="StoreWriter.DoCommitAsync"/>
-    protected override Task DoCommitAsync(Hash hash, CancellationToken cancel) =>
-        DoOptCommitAsync(hash, null, cancel);
+    protected override Task DoCommitAsync(Hash hash, IReadOnlyList<Hash> references, CancellationToken cancel) =>
+        DoOptCommitAsync(hash, references, null, cancel);
 
     /// <inheritdoc cref="StoreWriter.DoOptCommitAsync"/>
-    protected override async Task DoOptCommitAsync(Hash hash, Func<Task> optionalWrite, CancellationToken cancel)
+    protected override async Task DoOptCommitAsync(Hash hash, IReadOnlyList<Hash> references, Func<Task> optionalWrite, CancellationToken cancel)
     {
         var path = DiskStorePaths.PathOfHash(_path, hash);
+
+        // The references are written before the blob becomes visible, but only if 
+        // there are no existing references (existing references always win).
+        if (references.Count > 0)
+            WriteReferences(path, references);
 
         if (!File.Exists(path))
         {
@@ -71,10 +77,38 @@ public sealed class DiskWriter : StoreWriter
         }
     }
 
+    private void WriteReferences(string blobPath, IReadOnlyList<Hash> references)
+    {
+        var refsPath = DiskStorePaths.RefsPathOfBlobPath(blobPath);
+        if (File.Exists(refsPath)) return;
+
+        var bytes = new byte[references.Count * Hash.Size];
+        for (var i = 0; i < references.Count; ++i)
+            references[i].ToBytes(bytes.AsSpan(i * Hash.Size, Hash.Size));
+
+        // ReSharper disable once AssignNullToNotNullAttribute
+        Directory.CreateDirectory(Path.GetDirectoryName(blobPath));
+
+        // Write to a temporary file and move, so that readers never see partial lists.
+        var tempRefs = _tempPath + ".refs";
+        File.WriteAllBytes(tempRefs, bytes);
+
+        try
+        {
+            File.Move(tempRefs, refsPath);
+        }
+        catch (IOException) when (File.Exists(refsPath))
+        {
+            // Another writer raced us, and its references win.
+            File.Delete(tempRefs);
+        }
+    }
+
     /// <summary> Closes the temporary file and deletes it, if it exists. </summary>
     public override void Dispose()
     {
         _temp.Dispose();
         if (File.Exists(_tempPath)) File.Delete(_tempPath);
+        if (File.Exists(_tempPath + ".refs")) File.Delete(_tempPath + ".refs");
     }
 }

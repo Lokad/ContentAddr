@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
@@ -57,6 +58,52 @@ public abstract class StoreWriter : IDisposable
 
     /// <summary> If non-null, the exception that caused a write or commit to fail. </summary>
     public Exception Failure { get; private set; }
+
+    /// <summary> The distinct references declared so far, in declaration order. </summary>
+    /// <see cref="AddReference"/>
+    public IReadOnlyList<Hash> References => _references;
+
+    private readonly List<Hash> _references = new();
+    private readonly HashSet<Hash> _referenceSet = new();
+
+    /// <summary> Declare that the blob being written references another blob. </summary>
+    /// <remarks>
+    /// <para>
+    ///     Must be called before the commit is requested. Duplicates are ignored, and
+    ///     the order of first declaration is preserved. The references are persisted
+    ///     together with the blob and can be retrieved with
+    ///     <see cref="IReadBlobRef.GetReferencesAsync"/>. Stores support at least 4096 
+    ///     references per blob.
+    /// </para><para>
+    ///     References are not part of the blob hash. If the blob already exists in the store
+    ///     when committing, the references are only written if the existing blob has
+    ///     no references; if it has any, the references of this writer are ignored.
+    /// </para><para>
+    ///     Not thread-safe: do not call concurrently with other methods of this writer.
+    /// </para>
+    /// </remarks>
+    /// <returns> True if the hash was newly added, false if it was already declared. </returns>
+    /// <exception cref="InvalidOperationException"> If a commit was already requested, or the writer failed. </exception>
+    public bool AddReference(Hash hash)
+    {
+        if (Failure != null)
+            throw new InvalidOperationException(
+                "StoreWriter is in a failed state due to an earlier exception.",
+                Failure);
+
+        if (CommitWasRequested)
+            throw new InvalidOperationException("Cannot add references to a committed StoreWriter.");
+
+        if (!_referenceSet.Add(hash)) return false;
+        _references.Add(hash);
+        return true;
+    }
+
+    /// <summary> Calls <see cref="AddReference"/> for every hash. </summary>
+    public void AddReferences(IEnumerable<Hash> hashes)
+    {
+        foreach (var hash in hashes) AddReference(hash);
+    }
 
     /// <summary> The number of bytes received by this writer so far. </summary>
     /// <remarks> 
@@ -130,7 +177,7 @@ public abstract class StoreWriter : IDisposable
         {
             _hash = GetHashFromHasher();
 
-            await DoOptCommitAsync(_hash, null, cancel).ConfigureAwait(false);
+            await DoOptCommitAsync(_hash, _references, null, cancel).ConfigureAwait(false);
         }
         catch (Exception e)
         {
@@ -355,7 +402,7 @@ public abstract class StoreWriter : IDisposable
 
         try
         {
-            await DoOptCommitAsync(_hash, writeIfNecessary, cancel).ConfigureAwait(false);
+            await DoOptCommitAsync(_hash, _references, writeIfNecessary, cancel).ConfigureAwait(false);
         }
         catch (Exception e)
         {
@@ -449,6 +496,11 @@ public abstract class StoreWriter : IDisposable
     /// <summary> Commit all data written so far, with the provided hash. </summary>
     /// <remarks> The returned task should complete as soon as the data is safely persisted. </remarks>
     /// <param name="hash"> The hash of the data. </param>
+    /// <param name="references">
+    ///     The distinct references declared with <see cref="AddReference"/>. If the blob already
+    ///     exists with a non-empty list of references, these are ignored; if the existing blob has
+    ///     no references, these replace them.
+    /// </param>
     /// <param name="optionalWrite">
     /// <para>
     ///     Given the possibility of generating the same blob more than once, the store writer
@@ -469,15 +521,15 @@ public abstract class StoreWriter : IDisposable
     /// </para>
     /// </param>
     /// <param name="cancel"> Cancellation token. </param>
-    protected virtual async Task DoOptCommitAsync(Hash hash, Func<Task> optionalWrite, CancellationToken cancel)
+    protected virtual async Task DoOptCommitAsync(Hash hash, IReadOnlyList<Hash> references, Func<Task> optionalWrite, CancellationToken cancel)
     {
         if (optionalWrite != null) await optionalWrite().ConfigureAwait(false);
-        await DoCommitAsync(hash, cancel).ConfigureAwait(false);
+        await DoCommitAsync(hash, references, cancel).ConfigureAwait(false);
     }
 
     /// <summary> Commit all data written so far, with the provided hash. </summary>
     /// <remarks> The returned task should complete as soon as the data is safely persisted. </remarks>
-    protected abstract Task DoCommitAsync(Hash hash, CancellationToken cancel);
+    protected abstract Task DoCommitAsync(Hash hash, IReadOnlyList<Hash> references, CancellationToken cancel);
     
     public virtual void Dispose() {}
 }

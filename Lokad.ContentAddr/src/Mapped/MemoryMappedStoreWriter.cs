@@ -20,16 +20,22 @@ internal class MemoryMappedStoreWriter : StoreWriter
         _store = memoryMappedStore;
     }
 
-    protected override async Task DoOptCommitAsync(Hash hash, Func<Task> optionalWrite, CancellationToken cancel)
+    protected override async Task DoOptCommitAsync(Hash hash, IReadOnlyList<Hash> references, Func<Task> optionalWrite, CancellationToken cancel)
     {
-        if (_store[hash].Exists) return;
+        if (_store[hash].Exists)
+        {
+            // Nothing to write, except references if the blob has none.
+            if (references.Count > 0)
+                await DoCommitAsync(hash, references, cancel).ConfigureAwait(false);
+            return;
+        }
 
         if (optionalWrite != null) await optionalWrite().ConfigureAwait(false);
-        await DoCommitAsync(hash, cancel).ConfigureAwait(false);
+        await DoCommitAsync(hash, references, cancel).ConfigureAwait(false);
     }
 
-    protected override Task DoCommitAsync(Hash hash, CancellationToken cancel) =>
-        Task.Run(() => _store.Commit(hash, _accumulatedBuffers), cancel);
+    protected override Task DoCommitAsync(Hash hash, IReadOnlyList<Hash> references, CancellationToken cancel) =>
+        Task.Run(() => _store.Commit(hash, _accumulatedBuffers, references), cancel);
 
     protected override Task DoWriteAsync(
         ReadOnlyMemory<byte> buffer, 

@@ -21,6 +21,10 @@ internal static class DiskStorePaths
             hashstr[2..]);
     }
 
+    /// <summary> The path of the sidecar file listing the references of the blob at the specified path. </summary>
+    /// <remarks> Contains the raw bytes of the distinct hashes, concatenated. Absent if no references. </remarks>
+    internal static string RefsPathOfBlobPath(string blobPath) => blobPath + ".refs";
+
     /// <summary>
     /// The path of the folder containing all blobs from a specified account.
     /// </summary>

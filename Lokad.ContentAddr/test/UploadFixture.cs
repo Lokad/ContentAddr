@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
@@ -218,6 +219,81 @@ public abstract class UploadFixture
             Assert.Equal(r.Hash, new Hash(MD5.Create().ComputeHash(s)));
     }
     
+    private static Hash H(int i) => new Hash((ulong)i + 1, (ulong)i * 7919 + 3);
+
+    private async Task<Hash> WriteWithRefs(byte[] data, params Hash[] refs)
+    {
+        using var w = Store.StartWriting();
+        foreach (var r in refs) w.AddReference(r);
+        return (await w.WriteAndCommitAsync(data, 0, data.Length, CancellationToken.None)).Hash;
+    }
+
+    [Fact]
+    public async Task references_none()
+    {
+        var h = (await Store.WriteAsync([1, 2, 3], CancellationToken.None)).Hash;
+        Assert.Empty(await Store[h].GetReferencesAsync(CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task references_missing_blob()
+    {
+        await Assert.ThrowsAsync<NoSuchBlobException>(() =>
+            Store[H(99)].GetReferencesAsync(CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task references_distinct_ordered()
+    {
+        using var w = Store.StartWriting();
+        Assert.True(w.AddReference(H(2)));
+        Assert.True(w.AddReference(H(1)));
+        Assert.False(w.AddReference(H(2)));
+        w.Write([5, 6, 7], 0, 3);
+        var blob = await w.CommitAsync(CancellationToken.None);
+
+        Assert.Equal(new[] { H(2), H(1) }, await Store[blob.Hash].GetReferencesAsync(CancellationToken.None));
+        Assert.Throws<InvalidOperationException>(() => w.AddReference(H(3)));
+    }
+
+    [Fact]
+    public async Task references_many()
+    {
+        var refs = Enumerable.Range(0, 5000).Select(H).ToArray();
+        var h = await WriteWithRefs([9, 9], refs);
+        Assert.Equal(refs, await Store[h].GetReferencesAsync(CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task references_existing_wins()
+    {
+        var h = await WriteWithRefs([4, 2], H(1));
+        await WriteWithRefs([4, 2], H(2), H(3));
+        Assert.Equal(new[] { H(1) }, await Store[h].GetReferencesAsync(CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task references_filled_if_existing_empty()
+    {
+        var h = await WriteWithRefs([8, 8]);
+        Assert.Empty(await Store[h].GetReferencesAsync(CancellationToken.None));
+
+        await WriteWithRefs([8, 8], H(4), H(5));
+        Assert.Equal(new[] { H(4), H(5) }, await Store[h].GetReferencesAsync(CancellationToken.None));
+
+        await WriteWithRefs([8, 8], H(6));
+        Assert.Equal(new[] { H(4), H(5) }, await Store[h].GetReferencesAsync(CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task references_survive_import()
+    {
+        var h = await WriteWithRefs([3, 1, 4], H(7));
+        var dst = new Lokad.ContentAddr.Memory.MemoryStore();
+        await dst.ImportBlobs((IReadOnlyStore)Store, new[] { h }, null, CancellationToken.None);
+        Assert.Equal(new[] { H(7) }, await dst[h].GetReferencesAsync(CancellationToken.None));
+    }
+
     /// <summary> Misleading name. It does *not* convert a long to a byte[] </summary>
     protected static byte[] FakeFile(long n)
     {

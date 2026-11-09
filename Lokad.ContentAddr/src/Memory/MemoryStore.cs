@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -13,13 +14,16 @@ public sealed class MemoryStore : IStore<InMemoryBlobRef>
     /// <summary> All files, as byte buffers. </summary>
     private readonly IDictionary<Hash, byte[]> _files = new Dictionary<Hash, byte[]>();
 
+    /// <summary> References of blobs (only for blobs that have any). </summary>
+    private readonly IDictionary<Hash, IReadOnlyList<Hash>> _refs = new Dictionary<Hash, IReadOnlyList<Hash>>();
+
     /// <inheritdoc/>
     IReadBlobRef IReadOnlyStore.this[Hash hash] => this[hash];
 
-    public InMemoryBlobRef this[Hash hash] => new(_files, hash);
+    public InMemoryBlobRef this[Hash hash] => new(_files, hash, _refs);
 
     /// <inheritdoc/>
-    public StoreWriter StartWriting() => new Writer(_files);
+    public StoreWriter StartWriting() => new Writer(_files, _refs);
 
     public long Realm => 0;
 
@@ -31,6 +35,7 @@ public sealed class MemoryStore : IStore<InMemoryBlobRef>
     {
         lock (_files)
         {
+            _refs.Remove(hash);
             return _files.Remove(hash);
         }
     }
@@ -48,9 +53,12 @@ public sealed class MemoryStore : IStore<InMemoryBlobRef>
         /// <summary> Bytes are appended to this stream. </summary>
         private readonly MemoryStream _stream = new();
 
-        public Writer(IDictionary<Hash, byte[]> files)
+        private readonly IDictionary<Hash, IReadOnlyList<Hash>> _refs;
+
+        public Writer(IDictionary<Hash, byte[]> files, IDictionary<Hash, IReadOnlyList<Hash>> refs)
         {
             _files = files;
+            _refs = refs;
         }
 
         /// <inheritdoc cref="StoreWriter.DoWriteAsync"/>
@@ -58,11 +66,15 @@ public sealed class MemoryStore : IStore<InMemoryBlobRef>
             _stream.WriteAsync(buffer, cancel).AsTask();
 
         /// <inheritdoc cref="StoreWriter.DoCommitAsync"/>
-        protected override Task DoCommitAsync(Hash hash, CancellationToken cancel)
+        protected override Task DoCommitAsync(Hash hash, IReadOnlyList<Hash> references, CancellationToken cancel)
         {
             lock (_files)
             {
                 _files[hash] = _stream.ToArray();
+
+                // Existing references win, unless there are none.
+                if (references.Count > 0 && !_refs.ContainsKey(hash))
+                    _refs[hash] = references.ToArray();
             }
 
             return Task.FromResult(true);

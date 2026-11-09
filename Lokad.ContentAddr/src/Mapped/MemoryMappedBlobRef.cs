@@ -1,4 +1,6 @@
-﻿using System.IO;
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
 using System.IO.MemoryMappedFiles;
 using System.Threading;
 using System.Threading.Tasks;
@@ -23,13 +25,18 @@ public sealed class MemoryMappedBlobRef : IReadBlobRef
     /// <summary> The number of bytes. </summary>
     private readonly long _count;
 
+    /// <summary> The store, used to look up references. </summary>
+    private readonly MemoryMappedStore _store;
+
     public MemoryMappedBlobRef(
         long realm, 
         Hash hash, 
         MemoryMappedViewAccessor buffer,
         long offset,
-        long count)
+        long count,
+        MemoryMappedStore store = null)
     {
+        _store = store;
         Realm = realm;
         Hash = hash;
         _mmva = buffer;
@@ -57,5 +64,13 @@ public sealed class MemoryMappedBlobRef : IReadBlobRef
             return Task.FromResult<Stream>(new ReadMemoryStream(_mmva, _offset, _count));
 
         throw new NoSuchBlobException(Realm.ToString(), Hash);
+    }
+
+    public Task<IReadOnlyList<Hash>> GetReferencesAsync(CancellationToken cancel)
+    {
+        if (_mmva == null)
+            throw new NoSuchBlobException(Realm.ToString(), Hash);
+
+        return Task.FromResult(_store?.GetReferences(Hash) ?? Array.Empty<Hash>());
     }
 }

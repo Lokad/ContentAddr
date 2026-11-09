@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -16,7 +17,7 @@ public sealed class NullStore : IWriteOnlyStore
             Task.FromResult(0);
 
         /// <inheritdoc cref="StoreWriter.DoCommitAsync"/>
-        protected override Task DoCommitAsync(Hash hash, CancellationToken cancel) =>
+        protected override Task DoCommitAsync(Hash hash, IReadOnlyList<Hash> references, CancellationToken cancel) =>
             Task.FromResult(0);
     }
 }

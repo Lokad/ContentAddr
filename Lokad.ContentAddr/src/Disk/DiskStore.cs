@@ -24,6 +24,7 @@ public sealed class DiskStore : DiskReadOnlyStore, IStore<IReadBlobRef>
 
         try
         {
+            File.Delete(DiskStorePaths.RefsPathOfBlobPath(path));
             File.Delete(path);
         }
         catch (IOException) when (!File.Exists(path))

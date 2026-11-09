@@ -207,6 +207,8 @@ public static class StoreExtensions
                 await writer.WriteAsync(reader.ReadAsync, null, cancel).ConfigureAwait(false);
             }
 
+            writer.AddReferences(await srcBlob.GetReferencesAsync(cancel).ConfigureAwait(false));
+
             return await writer.CommitAsync(cancel).ConfigureAwait(false);
         }
     }

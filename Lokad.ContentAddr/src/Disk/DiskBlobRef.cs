@@ -1,4 +1,6 @@
-﻿using System.IO;
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -45,5 +47,28 @@ public sealed class DiskBlobRef : IReadBlobRef
         {
             throw new NoSuchBlobException(Path.GetDirectoryName(Path.GetDirectoryName(_path)), Hash);
         }
+    }
+
+    /// <inheritdoc/>
+    public Task<IReadOnlyList<Hash>> GetReferencesAsync(CancellationToken cancel)
+    {
+        if (!File.Exists(_path))
+            throw new NoSuchBlobException(Path.GetDirectoryName(Path.GetDirectoryName(_path)), Hash);
+
+        byte[] bytes;
+        try
+        {
+            bytes = File.ReadAllBytes(DiskStorePaths.RefsPathOfBlobPath(_path));
+        }
+        catch (Exception e) when (e is FileNotFoundException or DirectoryNotFoundException)
+        {
+            return Task.FromResult<IReadOnlyList<Hash>>(Array.Empty<Hash>());
+        }
+
+        var refs = new Hash[bytes.Length / Hash.Size];
+        for (var i = 0; i < refs.Length; ++i)
+            refs[i] = Hash.FromBytes(bytes.AsSpan(i * Hash.Size, Hash.Size));
+
+        return Task.FromResult<IReadOnlyList<Hash>>(refs);
     }
 }

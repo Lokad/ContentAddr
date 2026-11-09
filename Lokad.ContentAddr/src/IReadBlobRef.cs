@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System.Collections.Generic;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -22,4 +23,10 @@ public interface IReadBlobRef
     /// <remarks> Stream is seekable, read-only. </remarks>
     /// <exception cref="NoSuchBlobException"> If the blob does not exist. </exception>
     Task<Stream> OpenAsync(CancellationToken cancel);
+
+    /// <summary> The distinct references declared when this blob was written. </summary>
+    /// <remarks> Empty if the blob was written without references. </remarks>
+    /// <see cref="StoreWriter.AddReference"/>
+    /// <exception cref="NoSuchBlobException"> If the blob does not exist. </exception>
+    Task<IReadOnlyList<Hash>> GetReferencesAsync(CancellationToken cancel);
 }

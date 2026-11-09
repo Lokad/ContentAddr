@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -29,8 +30,19 @@ public sealed class StreamBlobRef : IReadBlobRef
     /// <summary> The stream opener. </summary>
     private readonly Func<CancellationToken, Task<Stream>> _open;
 
-    public StreamBlobRef(Func<CancellationToken, Task<Stream>> open, long size, Hash hash)
+    /// <summary> The references opener. </summary>
+    private readonly Func<CancellationToken, Task<IReadOnlyList<Hash>>> _getReferences;
+
+    /// <summary> Local cache of the references, once retrieved. </summary>
+    private IReadOnlyList<Hash> _references;
+
+    public StreamBlobRef(
+        Func<CancellationToken, Task<Stream>> open,
+        long size,
+        Hash hash,
+        Func<CancellationToken, Task<IReadOnlyList<Hash>>> getReferences)
     {
+        _getReferences = getReferences ?? throw new ArgumentNullException(nameof(getReferences));
         _open = open;
         _size = size;
         Hash = hash;
@@ -46,4 +58,8 @@ public sealed class StreamBlobRef : IReadBlobRef
 
     /// <inheritdoc/>
     public Task<Stream> OpenAsync(CancellationToken cancel) => _open(cancel);
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<Hash>> GetReferencesAsync(CancellationToken cancel) =>
+        _references ??= await _getReferences(cancel).ConfigureAwait(false);
 }
